@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c1c1e">
+<title>GlanceNav</title>
+<style>
+/* ── Reset ──────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;
+  -webkit-text-size-adjust:100%;padding-bottom:88px
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.hdr{
+  background:#1c1c1e;color:#fff;
+  padding:16px 16px 14px;
+  display:flex;align-items:center;gap:12px
+}
+.hdr-icon{font-size:26px;line-height:1;flex-shrink:0}
+.hdr-title{font-size:19px;font-weight:700;letter-spacing:-.3px}
+.hdr-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:2px}
+
+/* ── Search bar (sticky) ────────────────────────────────────────────── */
+.search-bar{
+  background:#fff;padding:10px 12px;
+  border-bottom:1px solid #e5e5ea;
+  position:sticky;top:0;z-index:20
+}
+.search-wrap{position:relative}
+.search-input{
+  width:100%;height:48px;
+  padding:0 14px 0 44px;
+  font-size:16px;
+  border:1.5px solid #e5e5ea;border-radius:12px;
+  background:#f2f2f7;color:#111;
+  outline:none;-webkit-appearance:none;
+  transition:border-color .15s,background .15s
+}
+.search-input:focus{border-color:#007AFF;background:#fff}
+.search-input::placeholder{color:#8e8e93}
+.search-icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  font-size:17px;pointer-events:none;line-height:1
+}
+
+/* ── Suggestions list ───────────────────────────────────────────────── */
+.suggestions{background:#fff;border-bottom:1px solid #e5e5ea}
+.suggestion{
+  padding:12px 16px;cursor:pointer;
+  border-bottom:1px solid #f2f2f7;
+  display:flex;align-items:flex-start;gap:10px;
+  -webkit-tap-highlight-color:rgba(0,122,255,.08);
+  min-height:52px
+}
+.suggestion:last-child{border-bottom:none}
+.suggestion:active{background:#eef5ff}
+.sug-icon{font-size:18px;flex-shrink:0;padding-top:1px;width:24px;text-align:center}
+.sug-name{font-size:15px;font-weight:600;color:#111}
+.sug-addr{font-size:12px;color:#8e8e93;margin-top:2px;line-height:1.3}
+
+/* ── Search status ──────────────────────────────────────────────────── */
+.srch-status{
+  padding:8px 16px;font-size:13px;color:#666;
+  background:#fff;border-bottom:1px solid #e5e5ea
+}
+.srch-status:empty{display:none}
+.srch-status.err{color:#c00000}
+
+/* ── Section grouping (iOS-style grouped list) ──────────────────────── */
+.section{
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea;
+  margin-top:20px
+}
+.sec-hdr{
+  padding:12px 16px 5px;
+  font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.7px;
+  color:#6e6e73
+}
+
+/* ── Current destination card ───────────────────────────────────────── */
+.dest-card{
+  padding:14px 16px;
+  display:flex;align-items:flex-start;gap:12px
+}
+.dest-icon{font-size:26px;flex-shrink:0;line-height:1;padding-top:1px}
+.dest-name{font-size:17px;font-weight:700;color:#111}
+.dest-addr{font-size:13px;color:#666;margin-top:3px;line-height:1.3}
+.dest-fav-row{
+  display:flex;gap:8px;
+  padding:0 16px 14px
+}
+.dest-fav-btn{
+  flex:1;padding:10px 6px;
+  font-size:14px;font-weight:600;
+  border:1.5px solid #007AFF;border-radius:10px;
+  color:#007AFF;background:#fff;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .1s
+}
+.dest-fav-btn:active{background:#eef5ff}
+
+/* ── Quick pick rows ────────────────────────────────────────────────── */
+.pick-item{
+  padding:14px 16px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid #f2f2f7;
+  cursor:pointer;min-height:62px;
+  -webkit-tap-highlight-color:rgba(0,0,0,.04);
+  transition:background .1s
+}
+.pick-item:last-child{border-bottom:none}
+.pick-item:active{background:#f5f5f5}
+.pick-item.disabled{opacity:.42;cursor:default}
+.pick-icon{font-size:22px;width:32px;text-align:center;flex-shrink:0}
+.pick-label{font-size:16px;font-weight:600;color:#111}
+.pick-value{font-size:13px;color:#555;margin-top:2px}
+.pick-empty{font-size:13px;color:#aaa;margin-top:2px;font-style:italic}
+.chev{margin-left:auto;font-size:20px;color:#c7c7cc;padding-left:6px;flex-shrink:0}
+
+/* ── Recent items ────────────────────────────────────────────────────── */
+.recent-item{
+  padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid #f2f2f7;
+  cursor:pointer;min-height:52px;
+  -webkit-tap-highlight-color:rgba(0,0,0,.04)
+}
+.recent-item:last-child{border-bottom:none}
+.recent-item:active{background:#f5f5f5}
+.rec-icon{font-size:16px;width:26px;text-align:center;flex-shrink:0;color:#8e8e93}
+.rec-name{font-size:15px;font-weight:600;color:#111}
+.rec-addr{font-size:12px;color:#8e8e93;margin-top:2px}
+.empty-msg{padding:14px 16px;font-size:14px;color:#aaa;font-style:italic}
+
+/* ── Route profile selector ─────────────────────────────────────────── */
+.profile-row{display:flex;gap:0;padding:12px 16px 16px}
+.profile-btn{
+  flex:1;padding:12px 4px;
+  font-size:13px;font-weight:600;
+  border:1.5px solid #e5e5ea;background:#f2f2f7;
+  cursor:pointer;color:#3c3c43;text-align:center;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .12s,color .12s
+}
+.profile-btn:first-child{border-radius:10px 0 0 10px}
+.profile-btn:last-child{border-radius:0 10px 10px 0}
+.profile-btn:not(:first-child){border-left:none}
+.profile-btn.on{
+  background:#007AFF;border-color:#007AFF;
+  color:#fff;position:relative;z-index:1
+}
+
+/* ── Advanced section ───────────────────────────────────────────────── */
+.adv-toggle{
+  padding:14px 16px;font-size:15px;color:#007AFF;
+  cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea;
+  margin-top:20px;
+  -webkit-tap-highlight-color:transparent
+}
+.adv-arrow{margin-left:auto;font-size:22px;color:#c7c7cc;transition:transform .2s}
+.adv-body{display:none;background:#fff;padding:0 16px 16px;border-bottom:1px solid #e5e5ea}
+.adv-body.open{display:block}
+.adv-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73;margin:12px 0 6px}
+.token-input{
+  width:100%;padding:12px;
+  font-size:13px;font-family:'Courier New',monospace;
+  border:1.5px solid #e5e5ea;border-radius:10px;
+  background:#f2f2f7;color:#111;
+  -webkit-appearance:none;outline:none
+}
+.token-input:focus{border-color:#007AFF;background:#fff}
+.adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}
+
+/* ── Bottom spacer (above fixed save bar) ───────────────────────────── */
+.end-space{height:16px}
+
+/* ── Fixed save bar ─────────────────────────────────────────────────── */
+.save-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  display:flex;gap:10px;
+  padding:10px 16px env(safe-area-inset-bottom,12px);
+  background:rgba(242,242,247,.96);
+  border-top:1px solid #e5e5ea;
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px)
+}
+.btn-cancel{
+  width:90px;height:50px;
+  font-size:16px;font-weight:600;
+  border:none;border-radius:12px;
+  background:#e5e5ea;color:#3c3c43;
+  cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent
+}
+.btn-cancel:active{opacity:.7}
+.btn-save{
+  flex:1;height:50px;
+  font-size:17px;font-weight:700;
+  border:none;border-radius:12px;
+  background:#007AFF;color:#fff;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .12s,opacity .12s
+}
+.btn-save:disabled{background:#c7c7cc;cursor:default}
+.btn-save:not(:disabled):active{background:#005ecb}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-icon">🧭</div>
+  <div>
+    <div class="hdr-title">GlanceNav</div>
+    <div class="hdr-sub">Pebble navigation settings</div>
+  </div>
+</header>
+
+<!-- Search (sticky at top) -->
+<div class="search-bar">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input id="search" class="search-input" type="text"
+           placeholder="Address, café, landmark..."
+           autocomplete="off" autocorrect="off"
+           autocapitalize="off" spellcheck="false">
+  </div>
+</div>
+<div id="suggestions" class="suggestions"></div>
+<div id="srchStatus" class="srch-status"></div>
+
+<!-- Current destination (hidden until a destination is selected) -->
+<div id="currentSection" class="section" style="display:none">
+  <div class="sec-hdr">Current Destination</div>
+  <div class="dest-card">
+    <span class="dest-icon">✅</span>
+    <div>
+      <div class="dest-name" id="destName"></div>
+      <div class="dest-addr" id="destAddr"></div>
+    </div>
+  </div>
+  <div class="dest-fav-row">
+    <button class="dest-fav-btn" id="saveHome">🏠 Save as Home</button>
+    <button class="dest-fav-btn" id="saveWork">💼 Save as Work</button>
+  </div>
+</div>
+
+<!-- Quick destinations -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Quick Destinations</div>
+  <div class="pick-item disabled" id="pickHome">
+    <span class="pick-icon">🏠</span>
+    <div>
+      <div class="pick-label">Home</div>
+      <div id="homeVal" class="pick-empty">Not set — search to add</div>
+    </div>
+    <span class="chev">›</span>
+  </div>
+  <div class="pick-item disabled" id="pickWork" style="border-top:1px solid #f2f2f7">
+    <span class="pick-icon">💼</span>
+    <div>
+      <div class="pick-label">Work</div>
+      <div id="workVal" class="pick-empty">Not set — search to add</div>
+    </div>
+    <span class="chev">›</span>
+  </div>
+</div>
+
+<!-- Recents -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Recent</div>
+  <div id="recentsList"></div>
+</div>
+
+<!-- Route profile -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Route Profile</div>
+  <div class="profile-row">
+    <button class="profile-btn" data-prof="cycling">🚲 Cycling</button>
+    <button class="profile-btn" data-prof="walking">🚶 Walking</button>
+    <button class="profile-btn" data-prof="driving">🚗 Driving</button>
+  </div>
+</div>
+
+<!-- Advanced (collapsed by default — token pre-configured) -->
+<div class="adv-toggle" id="advToggle">
+  <span>⚙ Advanced</span>
+  <span class="adv-arrow" id="advArrow">›</span>
+</div>
+<div class="adv-body" id="advBody">
+  <div class="adv-lbl">Mapbox public token</div>
+  <input id="tokenInput" class="token-input" type="text"
+         placeholder="pk.eyJ..."
+         autocapitalize="none" autocorrect="off" spellcheck="false">
+  <div class="adv-hint">
+    A default token is pre-configured — you don't need to touch this.
+    Only change it if you want to use your own Mapbox account token.
+    Always use a public token (starts with pk.), never a secret token.
+    Stored privately on your phone.
+  </div>
+</div>
+
+<div class="end-space"></div>
+
+<!-- Fixed bottom save bar -->
+<div class="save-bar">
+  <button class="btn-cancel" id="cancelBtn">Cancel</button>
+  <button class="btn-save" id="saveBtn" disabled>Save to Pebble</button>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────
+var STORE_KEY = 'glancenav-config-v1';
+// Auckland CBD — biases search results toward Auckland without hardcoding country lock
+var PROXIMITY = '174.7633,-36.8485';
+
+// ── App state ────────────────────────────────────────────────────────
+var S = {
+  token:   '',
+  profile: 'cycling',
+  active:  null,               // { name, address, lat, lon, mapboxId, savedAt }
+  favs:    { home: null, work: null },
+  recents: []
+};
+
+var sessionTok = uuid4();    // Mapbox session token; reset after each retrieve
+var debTimer   = null;       // Debounce timer handle
+var pendXhr    = null;       // In-flight suggest XHR (aborted on new keystroke)
+
+// ── Utilities ────────────────────────────────────────────────────────
+function uuid4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+function qs(s)  { return document.querySelector(s); }
+function qsa(s) { return document.querySelectorAll(s); }
+function esc(v) {
+  return String(v || '').replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function getParam(name, fallback) {
+  var m = location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
+  return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : (fallback || '');
+}
+
+// ── Persistent storage (recents + favs stay in config page localStorage) ──
+function loadStore() {
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { favs: { home: null, work: null }, recents: [] };
+}
+function saveStore() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      favs: S.favs, recents: S.recents
+    }));
+  } catch (e) {}
+}
+
+// ── Initialisation ───────────────────────────────────────────────────
+function init() {
+  // Load persisted recents + favs
+  var stored = loadStore();
+  S.favs    = stored.favs    || { home: null, work: null };
+  S.recents = stored.recents || [];
+
+  // Parse minimal handoff from index.js (token, profile, active dest)
+  var rawSettings = getParam('s', '');
+  if (rawSettings) {
+    try {
+      var inc = JSON.parse(rawSettings);
+      if (inc.token)   S.token   = inc.token;
+      if (inc.profile) S.profile = inc.profile;
+      if (inc.dest && inc.dest.lat) {
+        S.active = {
+          name:    inc.dest.name    || '',
+          address: inc.dest.address || '',
+          lat:     inc.dest.lat,
+          lon:     inc.dest.lon
+        };
+      }
+    } catch (e) {}
+  }
+
+  // Populate token field
+  var ti = qs('#tokenInput');
+  if (ti) ti.value = S.token;
+
+  renderAll();
+  bindAll();
+}
+
+// ── Render ───────────────────────────────────────────────────────────
+function renderAll() {
+  renderProfile();
+  renderCurrent();
+  renderFavs();
+  renderRecents();
+  updateSaveBtn();
+}
+
+function renderProfile() {
+  var btns = qsa('[data-prof]');
+  for (var i = 0; i < btns.length; i++) {
+    var b = btns[i];
+    b.className = 'profile-btn' + (b.getAttribute('data-prof') === S.profile ? ' on' : '');
+  }
+}
+
+function renderCurrent() {
+  var sec = qs('#currentSection');
+  if (!sec) return;
+  if (!S.active || !S.active.lat) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  var n = qs('#destName'), a = qs('#destAddr');
+  if (n) n.textContent = S.active.name    || 'Selected destination';
+  if (a) a.textContent = S.active.address || '';
+}
+
+function renderFavs() {
+  setFavItem('home', 'homeVal', 'pickHome');
+  setFavItem('work', 'workVal', 'pickWork');
+}
+
+function setFavItem(key, valId, rowId) {
+  var el = qs('#' + valId), row = qs('#' + rowId);
+  var d = S.favs[key];
+  if (el) {
+    if (d && d.name) {
+      el.textContent = d.name;
+      el.className = 'pick-value';
+    } else {
+      el.textContent = 'Not set — search to add';
+      el.className = 'pick-empty';
+    }
+  }
+  if (row) {
+    row.className = 'pick-item' + (d ? '' : ' disabled');
+  }
+}
+
+function renderRecents() {
+  var c = qs('#recentsList');
+  if (!c) return;
+  var recs = S.recents;
+  if (!recs || !recs.length) {
+    c.innerHTML = '<div class="empty-msg">No recent destinations yet.</div>';
+    return;
+  }
+  var html = '', max = Math.min(recs.length, 5);
+  for (var i = 0; i < max; i++) {
+    var d = recs[i];
+    html += '<div class="recent-item" data-rec="' + i + '">' +
+      '<span class="rec-icon">🕐</span>' +
+      '<div>' +
+        '<div class="rec-name">' + esc(d.name    || 'Unnamed') + '</div>' +
+        '<div class="rec-addr">' + esc(d.address || '') + '</div>' +
+      '</div>' +
+      '<span class="chev">›</span>' +
+      '</div>';
+  }
+  c.innerHTML = html;
+  var items = qsa('[data-rec]');
+  for (var j = 0; j < items.length; j++) {
+    items[j].addEventListener('click', function () {
+      var d = S.recents[parseInt(this.getAttribute('data-rec'), 10)];
+      if (d) selectDest(d, false);
+    });
+  }
+}
+
+function updateSaveBtn() {
+  var btn = qs('#saveBtn');
+  if (btn) btn.disabled = !(S.active && S.active.lat);
+}
+
+// ── Mapbox Search Box: suggest ────────────────────────────────────────
+function doSuggest(q) {
+  var tok = currentToken();
+  if (!tok || tok.indexOf('pk.') !== 0) {
+    setStatus('Open ⚙ Advanced and add your Mapbox token first.', true);
+    return;
+  }
+  if (!q || q.trim().length < 2) { clearSugs(); setStatus(''); return; }
+
+  // Abort previous in-flight request to avoid out-of-order rendering
+  if (pendXhr) { pendXhr.abort(); pendXhr = null; }
+  setStatus('');
+
+  var url = 'https://api.mapbox.com/search/searchbox/v1/suggest' +
+    '?q='             + encodeURIComponent(q.trim()) +
+    '&language=en' +
+    '&country=NZ' +
+    '&proximity='     + encodeURIComponent(PROXIMITY) +
+    '&limit=5' +
+    '&session_token=' + encodeURIComponent(sessionTok) +
+    '&access_token='  + encodeURIComponent(tok);
+
+  var xhr = new XMLHttpRequest();
+  pendXhr = xhr;
+  xhr.open('GET', url);
+  xhr.timeout = 8000;
+
+  xhr.onload = function () {
+    if (xhr !== pendXhr) return; // stale response — discard
+    pendXhr = null;
+    if (xhr.status < 200 || xhr.status >= 300) {
+      setStatus('Search error ' + xhr.status + '.', true); return;
+    }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      renderSugs(data.suggestions || []);
+    } catch (e) { setStatus('Could not read results.', true); }
+  };
+  xhr.onerror   = function () { if (xhr !== pendXhr) return; pendXhr = null; setStatus('Network error.', true); };
+  xhr.ontimeout = function () { if (xhr !== pendXhr) return; pendXhr = null; setStatus('Search timed out.', true); };
+  xhr.send();
+}
+
+// ── Mapbox Search Box: retrieve ───────────────────────────────────────
+// Called when the user taps a suggestion. /retrieve returns coordinates.
+function doRetrieve(mapboxId, suggName, suggAddr) {
+  var tok = currentToken();
+  setStatus('Getting details\u2026');
+  clearSugs();
+
+  var url = 'https://api.mapbox.com/search/searchbox/v1/retrieve/' +
+    encodeURIComponent(mapboxId) +
+    '?session_token=' + encodeURIComponent(sessionTok) +
+    '&access_token='  + encodeURIComponent(tok);
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url);
+  xhr.timeout = 8000;
+
+  xhr.onload = function () {
+    if (xhr.status < 200 || xhr.status >= 300) {
+      setStatus('Error ' + xhr.status + '.', true); return;
+    }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      var f = data.features && data.features[0];
+      if (!f || !f.geometry || !f.geometry.coordinates) {
+        setStatus('No coordinates found for this place.', true); return;
+      }
+      var c = f.geometry.coordinates, p = f.properties || {};
+      var dest = {
+        name:     p.name       || suggName || 'Destination',
+        address:  p.full_address || p.place_formatted || p.address || suggAddr || '',
+        lat:      String(c[1]),
+        lon:      String(c[0]),
+        mapboxId: mapboxId,
+        savedAt:  Date.now()
+      };
+      selectDest(dest, true);
+      // Mapbox billing: start a fresh session token after each retrieve
+      sessionTok = uuid4();
+      setStatus('');
+      var si = qs('#search');
+      if (si) si.value = '';
+    } catch (e) { setStatus('Could not read destination details.', true); }
+  };
+  xhr.onerror   = function () { setStatus('Network error.', true); };
+  xhr.ontimeout = function () { setStatus('Request timed out.', true); };
+  xhr.send();
+}
+
+// Feature-type icons for suggestion list
+var FT_ICON = { poi:'📍', address:'🏠', place:'🏙️', street:'🛣️', neighborhood:'🏘️', locality:'🏙️' };
+
+function renderSugs(sugs) {
+  var c = qs('#suggestions');
+  if (!c) return;
+  if (!sugs.length) { c.innerHTML = ''; setStatus('No results found.'); return; }
+  setStatus('');
+  var html = '';
+  for (var i = 0; i < sugs.length; i++) {
+    var s = sugs[i];
+    var ic   = FT_ICON[s.feature_type] || '📍';
+    var addr = s.full_address || s.place_formatted || s.address || '';
+    html += '<div class="suggestion"' +
+      ' data-id="'   + esc(s.mapbox_id || '') + '"' +
+      ' data-name="' + esc(s.name      || '') + '"' +
+      ' data-addr="' + esc(addr)              + '">' +
+      '<span class="sug-icon">' + ic + '</span>' +
+      '<div>' +
+        '<div class="sug-name">' + esc(s.name || 'Unnamed') + '</div>' +
+        '<div class="sug-addr">' + esc(addr) + '</div>' +
+      '</div></div>';
+  }
+  c.innerHTML = html;
+  var items = qsa('.suggestion');
+  for (var j = 0; j < items.length; j++) {
+    items[j].addEventListener('click', function () {
+      doRetrieve(
+        this.getAttribute('data-id'),
+        this.getAttribute('data-name'),
+        this.getAttribute('data-addr')
+      );
+    });
+  }
+}
+
+function clearSugs() { var c = qs('#suggestions'); if (c) c.innerHTML = ''; }
+function setStatus(msg, isErr) {
+  var el = qs('#srchStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'srch-status' + (isErr ? ' err' : '');
+}
+function currentToken() {
+  var ti = qs('#tokenInput');
+  return (ti ? ti.value.trim() : '') || S.token;
+}
+
+// ── Destination selection ─────────────────────────────────────────────
+function selectDest(dest, addRecent) {
+  S.active = dest;
+  if (addRecent) {
+    var next = [dest], old = S.recents || [];
+    for (var i = 0; i < old.length; i++) {
+      if (!sameDest(dest, old[i])) next.push(old[i]);
+      if (next.length >= 8) break;
+    }
+    S.recents = next;
+    saveStore();
+  }
+  renderAll();
+  // Scroll to show the confirmed destination
+  var sec = qs('#currentSection');
+  if (sec) setTimeout(function () {
+    sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 80);
+}
+
+function sameDest(a, b) {
+  if (!a || !b) return false;
+  if (a.mapboxId && b.mapboxId) return a.mapboxId === b.mapboxId;
+  return a.lat === b.lat && a.lon === b.lon;
+}
+
+function saveFav(key) {
+  if (!S.active) { alert('Choose a destination first.'); return; }
+  S.favs[key] = S.active;
+  saveStore();
+  renderFavs();
+  var btn = qs(key === 'home' ? '#saveHome' : '#saveWork');
+  if (btn) {
+    var orig = btn.textContent;
+    btn.textContent = '\u2713 Saved!';
+    setTimeout(function () { btn.textContent = orig; }, 1600);
+  }
+}
+
+// ── Save / Cancel ─────────────────────────────────────────────────────
+function doSave() {
+  if (!S.active || !S.active.lat) { alert('Choose a destination first.'); return; }
+  var tok = currentToken();
+  if (!tok || tok.indexOf('pk.') !== 0) {
+    // Open advanced section to prompt token entry
+    var ab = qs('#advBody');
+    if (ab && !ab.classList.contains('open')) {
+      ab.classList.add('open');
+      var arr = qs('#advArrow');
+      if (arr) arr.textContent = '\u2039';
+    }
+    alert('A Mapbox public token (starts with pk.) is required.\nOpen \u2699 Advanced to add one.');
+    return;
+  }
+  // Return only what index.js needs — keep payload compact
+  var result = {
+    mapboxToken: tok,
+    profile:     S.profile,
+    destName:    S.active.name    || '',
+    destLat:     S.active.lat,
+    destLon:     S.active.lon
+  };
+  var rt = getParam('return_to', 'pebblejs://close#');
+  document.location = rt + encodeURIComponent(JSON.stringify(result));
+}
+
+function doCancel() {
+  document.location = getParam('return_to', 'pebblejs://close#');
+}
+
+// ── Event binding ─────────────────────────────────────────────────────
+function bindAll() {
+  // Search — debounced, aborts in-flight on new keystroke
+  var si = qs('#search');
+  if (si) {
+    si.addEventListener('input', function () {
+      clearTimeout(debTimer);
+      var q = this.value;
+      if (!q.trim()) { clearSugs(); setStatus(''); return; }
+      debTimer = setTimeout(function () { doSuggest(q); }, 350);
+    });
+  }
+
+  // Profile buttons
+  var pbtns = qsa('[data-prof]');
+  for (var i = 0; i < pbtns.length; i++) {
+    pbtns[i].addEventListener('click', function () {
+      S.profile = this.getAttribute('data-prof');
+      renderProfile();
+    });
+  }
+
+  // Quick pick — Home
+  var ph = qs('#pickHome');
+  if (ph) ph.addEventListener('click', function () {
+    if (S.favs.home) selectDest(S.favs.home, false);
+  });
+  // Quick pick — Work
+  var pw = qs('#pickWork');
+  if (pw) pw.addEventListener('click', function () {
+    if (S.favs.work) selectDest(S.favs.work, false);
+  });
+
+  // Save as favourite
+  var sh = qs('#saveHome');
+  if (sh) sh.addEventListener('click', function () { saveFav('home'); });
+  var sw = qs('#saveWork');
+  if (sw) sw.addEventListener('click', function () { saveFav('work'); });
+
+  // Advanced toggle
+  var at = qs('#advToggle'), ab = qs('#advBody'), arr = qs('#advArrow');
+  if (at && ab) {
+    at.addEventListener('click', function () {
+      var open = ab.classList.toggle('open');
+      if (arr) arr.textContent = open ? '\u2039' : '\u203a';
+    });
+  }
+
+  // Save / Cancel
+  var sb = qs('#saveBtn');
+  if (sb) sb.addEventListener('click', doSave);
+  var cb = qs('#cancelBtn');
+  if (cb) cb.addEventListener('click', doCancel);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+}());
+</script>
+</body>
+</html>
