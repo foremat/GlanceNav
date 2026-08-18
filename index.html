@@ -3,198 +3,480 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1c1c1e">
+<meta name="theme-color" content="#f2f2f7">
 <title>GlanceNav</title>
 <style>
+/* ── Reset ──────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;-webkit-text-size-adjust:100%;padding-bottom:88px}
-.hdr{background:#1c1c1e;color:#fff;padding:16px 16px 14px;display:flex;align-items:center;gap:12px}
-.hdr-icon{font-size:26px;line-height:1;flex-shrink:0}
-.hdr-title{font-size:19px;font-weight:700;letter-spacing:-.3px}
-.hdr-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:2px}
-.search-bar{background:#fff;padding:10px 12px;border-bottom:1px solid #e5e5ea;position:sticky;top:0;z-index:20}
-.search-wrap{position:relative}
-.search-input{width:100%;height:48px;padding:0 14px 0 44px;font-size:16px;border:1.5px solid #e5e5ea;border-radius:12px;background:#f2f2f7;color:#111;outline:none;-webkit-appearance:none;transition:border-color .15s,background .15s}
-.search-input:focus{border-color:#007AFF;background:#fff}
-.search-input::placeholder{color:#8e8e93}
-.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:17px;pointer-events:none;line-height:1}
-.suggestions{background:#fff;border-bottom:1px solid #e5e5ea}
-.suggestion{padding:12px 16px;cursor:pointer;border-bottom:1px solid #f2f2f7;display:flex;align-items:flex-start;gap:10px;-webkit-tap-highlight-color:rgba(0,122,255,.08);min-height:52px}
-.suggestion:last-child{border-bottom:none}
-.suggestion:active{background:#eef5ff}
-.sug-icon{font-size:18px;flex-shrink:0;padding-top:1px;width:24px;text-align:center}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  font-size:16px;line-height:1.45;background:#f2f2f7;color:#111;
+  padding-bottom:80px
+}
+
+/* ── Mini header ────────────────────────────────────────── */
+.mini-hdr{
+  padding:10px 16px 9px;
+  display:flex;align-items:baseline;gap:7px;
+  background:#f2f2f7;border-bottom:1px solid #e5e5ea
+}
+.mini-hdr-name{font-size:15px;font-weight:700;color:#111}
+.mini-hdr-ver{font-size:11px;color:#8e8e93}
+
+/* ── Section labels ─────────────────────────────────────── */
+.sec-lbl{
+  padding:14px 16px 6px;
+  font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.7px;color:#6e6e73
+}
+
+/* ── Quick-start card strip ─────────────────────────────── */
+.card-strip{
+  display:flex;gap:10px;
+  padding:0 16px 14px;
+  overflow-x:auto;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch
+}
+.card-strip::-webkit-scrollbar{display:none}
+.dest-card{
+  flex:0 0 auto;width:96px;min-height:90px;
+  background:#fff;border:2px solid #e5e5ea;border-radius:14px;
+  padding:10px 7px 8px;cursor:pointer;
+  scroll-snap-align:start;position:relative;
+  -webkit-tap-highlight-color:transparent;
+  transition:border-color .15s,background .15s
+}
+.dest-card:active{background:#f5f5f7}
+.dest-card.active{border-color:#007AFF;background:#eef5ff}
+.add-card{
+  border-style:dashed;border-color:#c7c7cc;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:3px;color:#8e8e93
+}
+.add-card:active{background:#f5f5f7}
+.card-more{
+  position:absolute;top:3px;right:3px;
+  width:22px;height:22px;font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;color:#c7c7cc;line-height:1;
+  -webkit-tap-highlight-color:transparent
+}
+.card-more:active{background:rgba(0,0,0,.06)}
+.card-ic{font-size:22px;display:block;text-align:center;margin:0 auto 3px}
+.card-lbl{
+  font-size:12px;font-weight:700;color:#111;
+  text-align:center;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis
+}
+.card-addr{
+  font-size:10px;color:#8e8e93;text-align:center;
+  margin-top:2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis
+}
+.card-dot{
+  width:5px;height:5px;background:#007AFF;border-radius:50%;
+  position:absolute;bottom:5px;left:50%;transform:translateX(-50%)
+}
+
+/* Card management action bar */
+.card-act-bar{
+  display:none;flex-wrap:wrap;gap:8px;
+  padding:10px 16px 12px;
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea
+}
+.card-act-bar.open{display:flex}
+.card-act-lbl{width:100%;font-size:12px;color:#6e6e73;margin-bottom:1px}
+.act-chip{
+  padding:8px 14px;font-size:14px;font-weight:600;
+  border:1.5px solid #e5e5ea;border-radius:20px;
+  background:#f2f2f7;color:#111;cursor:pointer;
+  -webkit-tap-highlight-color:transparent
+}
+.act-chip.del{color:#c00000;border-color:#f2d5d5;background:#fff5f5}
+.act-chip.can{color:#007AFF;border-color:#cce0ff;background:#eef5ff}
+
+/* ── Mode selector ──────────────────────────────────────── */
+.mode-bar{display:flex;padding:0 16px 14px;gap:0}
+.mode-btn{
+  flex:1;padding:10px 4px;
+  font-size:13px;font-weight:600;
+  border:1.5px solid #e5e5ea;
+  background:#f2f2f7;color:#3c3c43;
+  cursor:pointer;text-align:center;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .1s,color .1s
+}
+.mode-btn:first-child{border-radius:10px 0 0 10px}
+.mode-btn:last-child{border-radius:0 10px 10px 0}
+.mode-btn+.mode-btn{border-left:none}
+.mode-btn.on{background:#007AFF;border-color:#007AFF;color:#fff;position:relative;z-index:1}
+
+/* ── Sticky search ──────────────────────────────────────── */
+.sticky-srch{
+  position:sticky;top:0;z-index:20;
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea
+}
+.repl-banner{
+  display:none;padding:7px 16px;
+  font-size:13px;font-weight:600;
+  background:#fff8e6;color:#7a5500;
+  border-bottom:1px solid #f0e0a0
+}
+.repl-banner.show{display:flex;align-items:center;gap:8px}
+.repl-cancel{
+  margin-left:auto;font-size:13px;font-weight:700;
+  color:#007AFF;cursor:pointer;padding:2px 6px;
+  -webkit-tap-highlight-color:transparent
+}
+.srch-field-wrap{position:relative;padding:10px 12px}
+.srch-input{
+  width:100%;height:46px;
+  padding:0 14px 0 42px;
+  font-size:16px;border:1.5px solid #e5e5ea;border-radius:12px;
+  background:#f2f2f7;color:#111;
+  outline:none;-webkit-appearance:none;
+  transition:border-color .15s,background .15s
+}
+.srch-input:focus{border-color:#007AFF;background:#fff}
+.srch-input::placeholder{color:#8e8e93}
+.srch-ic{
+  position:absolute;left:24px;top:50%;
+  transform:translateY(-50%);
+  font-size:17px;pointer-events:none
+}
+
+/* Suggestions */
+.sugs{background:#fff;border-bottom:1px solid #e5e5ea}
+.sug{
+  padding:12px 16px;display:flex;align-items:flex-start;gap:10px;
+  border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px;
+  -webkit-tap-highlight-color:rgba(0,122,255,.08)
+}
+.sug:last-child{border-bottom:none}
+.sug:active{background:#eef5ff}
+.sug-ic{font-size:18px;flex-shrink:0;padding-top:1px;width:24px;text-align:center}
 .sug-name{font-size:15px;font-weight:600;color:#111}
 .sug-addr{font-size:12px;color:#8e8e93;margin-top:2px;line-height:1.3}
-.srch-status{padding:8px 16px;font-size:13px;color:#666;background:#fff;border-bottom:1px solid #e5e5ea}
+.srch-status{
+  padding:8px 16px;font-size:13px;color:#666;
+  background:#fff;border-bottom:1px solid #e5e5ea
+}
 .srch-status:empty{display:none}
 .srch-status.err{color:#c00000}
-.section{background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:20px}
-.sec-hdr{padding:12px 16px 5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73}
-.dest-card{padding:14px 16px;display:flex;align-items:flex-start;gap:12px}
-.dest-icon{font-size:26px;flex-shrink:0;line-height:1;padding-top:1px}
-.dest-name{font-size:17px;font-weight:700;color:#111}
-.dest-addr{font-size:13px;color:#666;margin-top:3px;line-height:1.3}
-.dest-fav-row{display:flex;gap:8px;padding:0 16px 14px}
-.dest-fav-btn{flex:1;padding:10px 6px;font-size:14px;font-weight:600;border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;background:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s}
-.dest-fav-btn:active{background:#eef5ff}
-.pick-item{padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:62px;-webkit-tap-highlight-color:rgba(0,0,0,.04);transition:background .1s}
-.pick-item:last-child{border-bottom:none}
-.pick-item:active{background:#f5f5f5}
-.pick-item.disabled{opacity:.42;cursor:default}
-.pick-icon{font-size:22px;width:32px;text-align:center;flex-shrink:0}
-.pick-label{font-size:16px;font-weight:600;color:#111}
-.pick-value{font-size:13px;color:#555;margin-top:2px}
-.pick-empty{font-size:13px;color:#aaa;margin-top:2px;font-style:italic}
-.chev{margin-left:auto;font-size:20px;color:#c7c7cc;padding-left:6px;flex-shrink:0}
-.recent-item{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px;-webkit-tap-highlight-color:rgba(0,0,0,.04)}
-.recent-item:last-child{border-bottom:none}
-.recent-item:active{background:#f5f5f5}
-.rec-icon{font-size:16px;width:26px;text-align:center;flex-shrink:0;color:#8e8e93}
+
+/* ── Selected destination + route preview ───────────────── */
+.sel-section{
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea;
+  margin-top:12px
+}
+.sel-header{
+  display:flex;align-items:center;
+  padding:14px 16px 10px;gap:10px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent
+}
+.sel-hdr-text{flex:1;min-width:0}
+.sel-name{
+  font-size:16px;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#111
+}
+.sel-meta{font-size:13px;color:#007AFF;margin-top:2px;font-weight:500}
+.sel-meta.muted{color:#8e8e93}
+.sel-meta.err{color:#8e8e93;font-weight:400}
+.prev-chev{
+  font-size:19px;color:#c7c7cc;flex-shrink:0;
+  padding:4px;line-height:1;
+  transition:transform .2s
+}
+.prev-chev.open{transform:rotate(180deg)}
+
+/* Map area */
+.map-area{position:relative;background:#e5e5ea;overflow:hidden;min-height:170px}
+.map-img{width:100%;height:auto;display:block}
+.map-img.hidden{display:none}
+.map-loading{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;background:#e5e5ea;font-size:13px;color:#8e8e93
+}
+.map-loading.hidden{display:none}
+.pulse-row{display:flex;gap:6px}
+.pdot{
+  width:8px;height:8px;border-radius:50%;background:#007AFF;
+  animation:pulse 1.2s ease-in-out infinite
+}
+.pdot:nth-child(2){animation-delay:.2s}
+.pdot:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+.map-note{
+  padding:7px 14px;font-size:12px;color:#8e8e93;
+  text-align:center;border-top:1px solid #f2f2f7
+}
+.map-note:empty{display:none}
+
+/* Save-as chips */
+.save-as-row{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px}
+.save-chip{
+  padding:8px 14px;font-size:14px;font-weight:600;
+  border:1.5px solid #007AFF;border-radius:20px;
+  color:#007AFF;background:#fff;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:background .1s
+}
+.save-chip:active{background:#eef5ff}
+.save-chip.done{background:#007AFF;color:#fff;border-color:#007AFF}
+.custom-save-panel{
+  display:none;padding:0 16px 14px;gap:8px;align-items:center
+}
+.custom-save-panel.open{display:flex}
+.cust-label-inp{
+  flex:1;padding:10px 12px;font-size:15px;
+  border:1.5px solid #e5e5ea;border-radius:10px;
+  background:#f2f2f7;color:#111;
+  outline:none;-webkit-appearance:none
+}
+.cust-label-inp:focus{border-color:#007AFF;background:#fff}
+.cust-save-btn{
+  padding:10px 16px;font-size:15px;font-weight:700;
+  border:none;border-radius:10px;
+  background:#007AFF;color:#fff;
+  cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent
+}
+
+/* ── Recents ────────────────────────────────────────────── */
+.rec-card{
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea;
+  margin-top:16px
+}
+.rec-item{
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid #f2f2f7;
+  cursor:pointer;min-height:52px;
+  -webkit-tap-highlight-color:rgba(0,0,0,.04)
+}
+.rec-item:last-child{border-bottom:none}
+.rec-item:active{background:#f5f5f5}
+.rec-ic{font-size:16px;width:26px;text-align:center;flex-shrink:0;color:#8e8e93}
 .rec-name{font-size:15px;font-weight:600;color:#111}
 .rec-addr{font-size:12px;color:#8e8e93;margin-top:2px}
+.rec-chev{margin-left:auto;font-size:20px;color:#c7c7cc;padding-left:6px;flex-shrink:0}
 .empty-msg{padding:14px 16px;font-size:14px;color:#aaa;font-style:italic}
-.profile-row{display:flex;gap:0;padding:12px 16px 16px}
-.profile-btn{flex:1;padding:12px 4px;font-size:13px;font-weight:600;border:1.5px solid #e5e5ea;background:#f2f2f7;cursor:pointer;color:#3c3c43;text-align:center;-webkit-tap-highlight-color:transparent;transition:background .12s,color .12s}
-.profile-btn:first-child{border-radius:10px 0 0 10px}
-.profile-btn:last-child{border-radius:0 10px 10px 0}
-.profile-btn:not(:first-child){border-left:none}
-.profile-btn.on{background:#007AFF;border-color:#007AFF;color:#fff;position:relative;z-index:1}
-.adv-toggle{padding:14px 16px;font-size:15px;color:#007AFF;cursor:pointer;display:flex;align-items:center;gap:8px;background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:20px;-webkit-tap-highlight-color:transparent}
-.adv-arrow{margin-left:auto;font-size:22px;color:#c7c7cc;transition:transform .2s}
-.adv-body{display:none;background:#fff;padding:0 16px 16px;border-bottom:1px solid #e5e5ea}
+
+/* ── Advanced ───────────────────────────────────────────── */
+.adv-toggle{
+  margin-top:20px;padding:14px 16px;
+  font-size:15px;color:#007AFF;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  background:#fff;
+  border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;
+  -webkit-tap-highlight-color:transparent
+}
+.adv-arr{margin-left:auto;font-size:22px;color:#c7c7cc;transition:transform .2s}
+.adv-body{display:none;background:#fff;padding:4px 16px 16px;border-bottom:1px solid #e5e5ea}
 .adv-body.open{display:block}
-.adv-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73;margin:12px 0 6px}
-.token-input{width:100%;padding:12px;font-size:13px;font-family:'Courier New',monospace;border:1.5px solid #e5e5ea;border-radius:10px;background:#f2f2f7;color:#111;-webkit-appearance:none;outline:none}
-.token-input:focus{border-color:#007AFF;background:#fff}
+.adv-lbl{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+  color:#6e6e73;margin:12px 0 6px
+}
+.tok-input{
+  width:100%;padding:12px;
+  font-size:13px;font-family:'Courier New',monospace;
+  border:1.5px solid #e5e5ea;border-radius:10px;
+  background:#f2f2f7;color:#111;
+  -webkit-appearance:none;outline:none
+}
+.tok-input:focus{border-color:#007AFF;background:#fff}
 .adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}
-.end-space{height:16px}
-.save-bar{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:10px 16px env(safe-area-inset-bottom,12px);background:rgba(242,242,247,.96);border-top:1px solid #e5e5ea;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
-.btn-cancel{width:90px;height:50px;font-size:16px;font-weight:600;border:none;border-radius:12px;background:#e5e5ea;color:#3c3c43;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.end-space{height:20px}
+
+/* ── Fixed save bar ─────────────────────────────────────── */
+.save-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  display:flex;gap:10px;
+  padding:10px 16px env(safe-area-inset-bottom,12px);
+  background:rgba(242,242,247,.96);border-top:1px solid #e5e5ea;
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px)
+}
+.btn-cancel{
+  width:90px;height:50px;font-size:16px;font-weight:600;
+  border:none;border-radius:12px;
+  background:#e5e5ea;color:#3c3c43;
+  cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent
+}
 .btn-cancel:active{opacity:.7}
-.btn-save{flex:1;height:50px;font-size:17px;font-weight:700;border:none;border-radius:12px;background:#007AFF;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s,opacity .12s}
+.btn-save{
+  flex:1;height:50px;font-size:17px;font-weight:700;
+  border:none;border-radius:12px;
+  background:#007AFF;color:#fff;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .12s
+}
 .btn-save:disabled{background:#c7c7cc;cursor:default}
 .btn-save:not(:disabled):active{background:#005ecb}
 </style>
 </head>
 <body>
 
-<header class="hdr">
-  <div class="hdr-icon">🧭</div>
-  <div>
-    <div class="hdr-title">GlanceNav</div>
-    <div class="hdr-sub">Pebble navigation settings</div>
-  </div>
-</header>
+<!-- Mini header -->
+<div class="mini-hdr">
+  <span class="mini-hdr-name">🧭 GlanceNav</span>
+  <span class="mini-hdr-ver">v0.5</span>
+</div>
 
-<div class="search-bar">
-  <div class="search-wrap">
-    <span class="search-icon">🔍</span>
-    <input id="search" class="search-input" type="text"
-           placeholder="Address, café, landmark..."
+<!-- Quick start cards -->
+<div class="sec-lbl">QUICK START</div>
+<div class="card-strip" id="cardStrip"></div>
+
+<!-- Card management action bar -->
+<div class="card-act-bar" id="cardActBar">
+  <div class="card-act-lbl" id="cardActLbl"></div>
+  <button class="act-chip" id="replaceBtn">Change location</button>
+  <button class="act-chip del" id="removeBtn">Remove</button>
+  <button class="act-chip can" id="cancelActBtn">Cancel</button>
+</div>
+
+<!-- Mode selector -->
+<div class="mode-bar">
+  <button class="mode-btn" data-prof="cycling">🚲 Cycling</button>
+  <button class="mode-btn" data-prof="walking">🚶 Walking</button>
+  <button class="mode-btn" data-prof="driving">🚗 Driving</button>
+</div>
+
+<!-- Search (sticky) -->
+<div class="sticky-srch">
+  <div class="repl-banner" id="replBanner">
+    <span id="replBannerText"></span>
+    <span class="repl-cancel" id="replCancelBtn">✕ Cancel</span>
+  </div>
+  <div class="srch-field-wrap">
+    <span class="srch-ic">🔍</span>
+    <input id="search" class="srch-input" type="text"
+           placeholder="Address, café, landmark…"
            autocomplete="off" autocorrect="off"
            autocapitalize="off" spellcheck="false">
   </div>
 </div>
-<div id="suggestions" class="suggestions"></div>
+<div id="sugs" class="sugs"></div>
 <div id="srchStatus" class="srch-status"></div>
 
-<div id="currentSection" class="section" style="display:none">
-  <div class="sec-hdr">Current Destination</div>
-  <div class="dest-card">
-    <span class="dest-icon">✅</span>
-    <div>
-      <div class="dest-name" id="destName"></div>
-      <div class="dest-addr" id="destAddr"></div>
+<!-- Selected destination + route preview -->
+<div class="sel-section" id="selSection" style="display:none">
+  <div class="sel-header" id="selHeader">
+    <div class="sel-hdr-text">
+      <div class="sel-name" id="selName"></div>
+      <div class="sel-meta muted" id="selMeta">Getting route…</div>
+    </div>
+    <span class="prev-chev open" id="prevChev">▾</span>
+  </div>
+
+  <div id="prevBody">
+    <!-- Map -->
+    <div class="map-area" id="mapArea">
+      <div class="map-loading" id="mapLoading">
+        <div class="pulse-row">
+          <div class="pdot"></div><div class="pdot"></div><div class="pdot"></div>
+        </div>
+        <span>Getting route…</span>
+      </div>
+      <img class="map-img hidden" id="mapImg" alt="Route preview">
+    </div>
+    <div class="map-note" id="mapNote"></div>
+
+    <!-- Save as -->
+    <div class="save-as-row">
+      <button class="save-chip" id="saveHomeChip">🏠 Set as Home</button>
+      <button class="save-chip" id="saveWorkChip">💼 Set as Work</button>
+      <button class="save-chip" id="saveCustomChip">★ Save as…</button>
+    </div>
+    <div class="custom-save-panel" id="custPanel">
+      <input class="cust-label-inp" id="custLabelInp" type="text"
+             placeholder="Gym, Daycare, Mum's place…"
+             autocorrect="off" autocapitalize="words">
+      <button class="cust-save-btn" id="confirmCust">Save</button>
     </div>
   </div>
-  <div class="dest-fav-row">
-    <button class="dest-fav-btn" id="saveHome">🏠 Save as Home</button>
-    <button class="dest-fav-btn" id="saveWork">💼 Save as Work</button>
-  </div>
 </div>
 
-<div class="section" style="margin-top:20px">
-  <div class="sec-hdr">Quick Destinations</div>
-  <div class="pick-item disabled" id="pickHome">
-    <span class="pick-icon">🏠</span>
-    <div>
-      <div class="pick-label">Home</div>
-      <div id="homeVal" class="pick-empty">Not set — search to add</div>
-    </div>
-    <span class="chev">›</span>
-  </div>
-  <div class="pick-item disabled" id="pickWork" style="border-top:1px solid #f2f2f7">
-    <span class="pick-icon">💼</span>
-    <div>
-      <div class="pick-label">Work</div>
-      <div id="workVal" class="pick-empty">Not set — search to add</div>
-    </div>
-    <span class="chev">›</span>
-  </div>
+<!-- Recents -->
+<div class="rec-card" id="recCard">
+  <div class="sec-lbl">RECENT</div>
+  <div id="recList"></div>
 </div>
 
-<div class="section" style="margin-top:20px">
-  <div class="sec-hdr">Recent</div>
-  <div id="recentsList"></div>
-</div>
-
-<div class="section" style="margin-top:20px">
-  <div class="sec-hdr">Route Profile</div>
-  <div class="profile-row">
-    <button class="profile-btn" data-prof="cycling">🚲 Cycling</button>
-    <button class="profile-btn" data-prof="walking">🚶 Walking</button>
-    <button class="profile-btn" data-prof="driving">🚗 Driving</button>
-  </div>
-</div>
-
+<!-- Advanced -->
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
-  <span class="adv-arrow" id="advArrow">›</span>
+  <span class="adv-arr" id="advArr">›</span>
 </div>
 <div class="adv-body" id="advBody">
   <div class="adv-lbl">Mapbox public token</div>
-  <input id="tokenInput" class="token-input" type="text"
-         placeholder="pk.eyJ..."
+  <input id="tokInput" class="tok-input" type="text"
+         placeholder="pk.eyJ…"
          autocapitalize="none" autocorrect="off" spellcheck="false">
   <div class="adv-hint">
-    A default token is pre-configured — you don't need to touch this.
-    Only change it if you want to use your own Mapbox account token.
-    Always use a public token (starts with pk.), never a secret token.
-    Stored privately on your phone.
+    A default token is pre-configured. You only need to change this if using your own Mapbox account.
+    Always use a public token (starts with pk.). Stored privately on your phone.
   </div>
 </div>
-
 <div class="end-space"></div>
 
+<!-- Save bar -->
 <div class="save-bar">
   <button class="btn-cancel" id="cancelBtn">Cancel</button>
-  <button class="btn-save" id="saveBtn" disabled>Save to Pebble</button>
+  <button class="btn-save" id="saveBtn" disabled>Set on watch</button>
 </div>
 
 <script>
 (function () {
 'use strict';
 
-var STORE_KEY = 'glancenav-config-v1';
-var PROXIMITY = '174.7633,-36.8485'; // Auckland CBD bias
+// ── Config ───────────────────────────────────────────────
+var STORE_KEY   = 'glancenav-config-v1';
+var MAX_CUSTOM  = 2;
+var MAX_RECENTS = 8;
+var PROXIMITY   = '174.7633,-36.8485'; // Auckland CBD proximity bias
 
+// ── State ────────────────────────────────────────────────
 var S = {
   token:   '',
   profile: 'cycling',
-  active:  null,
-  favs:    { home: null, work: null },
-  recents: []
+  active:  null,              // {name,address,lat,lon,mapboxId,savedAt}
+  favs:    { home:null, work:null, custom:[] },
+  recents: [],
+  managingSlot: null,         // slot whose ⋯ is open
+  replacingSlot: null,        // null | 'home' | 'work' | {id,label} (custom)
+  previewOpen:  true,
+  previewXhr:   null          // abort handle for in-flight preview Directions call
 };
 
+// Location cache — avoids repeated geolocation requests on mode changes
+var cachedCoords    = null;
+var cachedCoordsAt  = 0;
+var COORDS_CACHE_MS = 90000; // 90 seconds
+
+// Search
 var sessionTok = uuid4();
 var debTimer   = null;
 var pendXhr    = null;
 
-// ── Utilities ──────────────────────────────────────────────────────
+// ── Utilities ────────────────────────────────────────────
 function uuid4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
+    var r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
   });
 }
 function qs(s)  { return document.querySelector(s); }
@@ -204,119 +486,577 @@ function esc(v) {
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
 }
-function getParam(name, fallback) {
+function getParam(name, def) {
   var m = location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
-  return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : (fallback || '');
+  return m ? decodeURIComponent(m[1].replace(/\+/g,' ')) : (def || '');
+}
+function currentToken() {
+  var ti = qs('#tokInput');
+  return (ti ? ti.value.trim() : '') || S.token;
+}
+function sameDest(a, b) {
+  if (!a || !b) return false;
+  if (a.mapboxId && b.mapboxId && a.mapboxId === b.mapboxId) return true;
+  return String(a.lat) === String(b.lat) && String(a.lon) === String(b.lon);
+}
+function shortAddr(addr) {
+  if (!addr) return '';
+  var p = String(addr).split(',');
+  return p.slice(0, Math.min(2, p.length)).join(',').trim();
+}
+function fmtDist(m) {
+  if (!isFinite(m)) return '';
+  if (m < 1000) return Math.round(m) + ' m';
+  return (m / 1000).toFixed(1) + ' km';
+}
+function fmtDur(s) {
+  if (!isFinite(s)) return '';
+  var mins = Math.round(s / 60);
+  if (mins < 60) return mins + ' min';
+  var h = Math.floor(mins / 60), mn = mins % 60;
+  return h + ' h' + (mn ? ' ' + mn + ' min' : '');
+}
+function profileLabel(p) {
+  if (p === 'walking') return 'Walking';
+  if (p === 'driving') return 'Driving';
+  return 'Cycling';
+}
+function getDestForSlot(slot) {
+  if (slot === 'home') return S.favs.home;
+  if (slot === 'work') return S.favs.work;
+  for (var i = 0; i < S.favs.custom.length; i++) {
+    if (S.favs.custom[i].id === slot) return S.favs.custom[i];
+  }
+  return null;
+}
+function getLabelForSlot(slot) {
+  if (slot === 'home') return 'Home';
+  if (slot === 'work') return 'Work';
+  for (var i = 0; i < S.favs.custom.length; i++) {
+    if (S.favs.custom[i].id === slot) return S.favs.custom[i].label;
+  }
+  return 'Destination';
 }
 
-// ── Persistent store ───────────────────────────────────────────────
+// ── Persistence ──────────────────────────────────────────
 function loadStore() {
-  try { var r = localStorage.getItem(STORE_KEY); if (r) return JSON.parse(r); }
-  catch(e) {}
-  return { favs: { home: null, work: null }, recents: [] };
+  try {
+    var r = localStorage.getItem(STORE_KEY);
+    if (r) return JSON.parse(r);
+  } catch(e) {}
+  return { favs:{ home:null, work:null, custom:[] }, recents:[] };
 }
 function saveStore() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ favs: S.favs, recents: S.recents })); }
-  catch(e) {}
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      favs: S.favs, recents: S.recents
+    }));
+  } catch(e) {}
 }
 
-// ── Initialisation ─────────────────────────────────────────────────
+// ── Init ─────────────────────────────────────────────────
 function init() {
   var stored = loadStore();
-  S.favs    = stored.favs    || { home: null, work: null };
+  S.favs    = stored.favs || { home:null, work:null, custom:[] };
+  if (!S.favs.custom) S.favs.custom = [];
   S.recents = stored.recents || [];
 
-  var rawSettings = getParam('s', '');
-  if (rawSettings) {
+  // Handoff from index.js
+  var rawS = getParam('s', '');
+  if (rawS) {
     try {
-      var inc = JSON.parse(rawSettings);
+      var inc = JSON.parse(rawS);
       if (inc.token)   S.token   = inc.token;
       if (inc.profile) S.profile = inc.profile;
       if (inc.dest && inc.dest.lat) {
-        S.active = { name: inc.dest.name || '', address: inc.dest.address || '',
-                     lat: inc.dest.lat, lon: inc.dest.lon };
+        S.active = {
+          name:    inc.dest.name    || '',
+          address: inc.dest.address || '',
+          lat:     inc.dest.lat,
+          lon:     inc.dest.lon
+        };
       }
     } catch(e) {}
   }
 
-  var ti = qs('#tokenInput');
+  var ti = qs('#tokInput');
   if (ti) ti.value = S.token;
 
   renderAll();
   bindAll();
+
+  // Auto-show preview for incoming active destination
+  if (S.active && S.active.lat) {
+    showSelSection(S.active, true);
+  }
 }
 
-// ── Render ─────────────────────────────────────────────────────────
+// ── Render ───────────────────────────────────────────────
 function renderAll() {
-  renderProfile();
-  renderCurrent();
-  renderFavs();
+  renderCards();
+  renderMode();
   renderRecents();
   updateSaveBtn();
 }
 
-function renderProfile() {
-  var btns = qsa('[data-prof]');
-  for (var i = 0; i < btns.length; i++) {
-    var b = btns[i];
-    b.className = 'profile-btn' + (b.getAttribute('data-prof') === S.profile ? ' on' : '');
+// ── Cards ────────────────────────────────────────────────
+function renderCards() {
+  var strip = qs('#cardStrip');
+  if (!strip) return;
+  var html = '';
+
+  html += makeCardHtml('home', '🏠', 'Home', S.favs.home);
+  html += makeCardHtml('work', '💼', 'Work', S.favs.work);
+  for (var i = 0; i < S.favs.custom.length; i++) {
+    var c = S.favs.custom[i];
+    html += makeCardHtml(c.id, '📍', c.label, c);
+  }
+  if (S.favs.custom.length < MAX_CUSTOM) {
+    html += '<div class="dest-card add-card" id="addCard">' +
+      '<span style="font-size:26px;line-height:1;display:block;text-align:center">+</span>' +
+      '<span class="card-lbl" style="color:#8e8e93;margin-top:4px">Add</span>' +
+      '</div>';
+  }
+  strip.innerHTML = html;
+
+  // Bind card clicks
+  var cards = qsa('.dest-card[data-slot]');
+  for (var j = 0; j < cards.length; j++) {
+    cards[j].addEventListener('click', onCardClick);
+  }
+  var mores = qsa('.card-more[data-slot]');
+  for (var k = 0; k < mores.length; k++) {
+    mores[k].addEventListener('click', onCardMore);
+  }
+  var ac = qs('#addCard');
+  if (ac) ac.addEventListener('click', onAddCard);
+}
+
+function makeCardHtml(slot, icon, label, dest) {
+  var isActive = !!(S.active && dest && sameDest(S.active, dest));
+  var addr = dest ? shortAddr(dest.address || dest.name || '') : '';
+  var cls  = 'dest-card' + (isActive ? ' active' : '');
+  return '<div class="' + cls + '" data-slot="' + esc(slot) + '">' +
+    '<span class="card-more" data-slot="' + esc(slot) + '">⋯</span>' +
+    '<span class="card-ic">' + icon + '</span>' +
+    '<div class="card-lbl">' + esc(label) + '</div>' +
+    (addr ? '<div class="card-addr">' + esc(addr) + '</div>' : '') +
+    (isActive ? '<div class="card-dot"></div>' : '') +
+    '</div>';
+}
+
+function updateActiveState() {
+  var cards = qsa('.dest-card[data-slot]');
+  for (var i = 0; i < cards.length; i++) {
+    var slot  = cards[i].getAttribute('data-slot');
+    var dest  = getDestForSlot(slot);
+    var isAct = !!(S.active && dest && sameDest(S.active, dest));
+    cards[i].classList.toggle('active', isAct);
+    var dot = cards[i].querySelector('.card-dot');
+    if (isAct && !dot) {
+      var d = document.createElement('div');
+      d.className = 'card-dot'; cards[i].appendChild(d);
+    } else if (!isAct && dot) { dot.remove(); }
   }
 }
 
-function renderCurrent() {
-  var sec = qs('#currentSection');
+// ── Card interactions ────────────────────────────────────
+function onCardClick(e) {
+  if (e.target.classList.contains('card-more')) return;
+  var slot = this.getAttribute('data-slot');
+  var dest = getDestForSlot(slot);
+  if (!dest) {
+    // Empty slot — kick off replace flow
+    beginReplacing(slot);
+    return;
+  }
+  selectDest(dest);
+}
+
+function onCardMore(e) {
+  e.stopPropagation();
+  var slot = this.getAttribute('data-slot');
+  toggleActBar(slot);
+}
+
+function onAddCard() {
+  // Begin a new custom slot — search first, name after
+  S.replacingSlot = { type: 'newcustom' };
+  showReplBanner('⭐ Search for a new place to save');
+  focusSearch();
+  closeActBar();
+}
+
+function toggleActBar(slot) {
+  var bar = qs('#cardActBar');
+  if (bar.classList.contains('open') && S.managingSlot === slot) {
+    closeActBar(); return;
+  }
+  S.managingSlot = slot;
+  var lbl     = getLabelForSlot(slot);
+  var remBtn  = qs('#removeBtn');
+  qs('#cardActLbl').textContent = 'Managing: ' + lbl;
+  // Home/Work cannot be removed (only replaced)
+  if (remBtn) remBtn.style.display = (slot === 'home' || slot === 'work') ? 'none' : '';
+  bar.classList.add('open');
+  bar.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function closeActBar() {
+  qs('#cardActBar').classList.remove('open');
+  S.managingSlot = null;
+}
+
+// ── Replacing mode ───────────────────────────────────────
+function beginReplacing(slot) {
+  S.replacingSlot = slot;
+  var lbl = getLabelForSlot(slot);
+  showReplBanner('🔄 Changing ' + lbl + ' — search for new location');
+  focusSearch();
+  closeActBar();
+}
+
+function showReplBanner(msg) {
+  var b = qs('#replBanner'), t = qs('#replBannerText');
+  if (b) b.className = 'repl-banner show';
+  if (t) t.textContent = msg;
+}
+
+function clearReplacing() {
+  S.replacingSlot = null;
+  var b = qs('#replBanner');
+  if (b) b.className = 'repl-banner';
+  var si = qs('#search');
+  if (si) si.placeholder = 'Address, café, landmark…';
+}
+
+function focusSearch() {
+  var si = qs('#search');
+  if (!si) return;
+  si.value = '';
+  clearSugs();
+  si.focus();
+  si.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── Destination selection ────────────────────────────────
+function selectDest(dest) {
+  var slot = S.replacingSlot;
+
+  if (slot) {
+    clearReplacing();
+    if (slot === 'home') {
+      S.favs.home = toFav(dest);
+    } else if (slot === 'work') {
+      S.favs.work = toFav(dest);
+    } else if (slot && typeof slot === 'object' && slot.type === 'newcustom') {
+      // Set as active, open custom panel to name it
+      S.active = dest;
+      addToRecents(dest);
+      renderCards();
+      showSelSection(dest, true);
+      openCustPanel();
+      updateSaveBtn();
+      return;
+    } else if (slot && typeof slot === 'object' && slot.id) {
+      // Replacing existing custom slot
+      for (var i = 0; i < S.favs.custom.length; i++) {
+        if (S.favs.custom[i].id === slot.id) {
+          var updated    = toFav(dest);
+          updated.id     = slot.id;
+          updated.label  = slot.label;
+          S.favs.custom[i] = updated;
+          break;
+        }
+      }
+    }
+    saveStore();
+  }
+
+  S.active = dest;
+  addToRecents(dest);
+  renderCards();
+  showSelSection(dest, true);
+  updateSaveBtn();
+}
+
+function toFav(dest) {
+  return {
+    name:     dest.name,
+    address:  dest.address || '',
+    lat:      dest.lat,
+    lon:      dest.lon,
+    mapboxId: dest.mapboxId || null,
+    savedAt:  Date.now()
+  };
+}
+
+function addToRecents(dest) {
+  var next = [dest], old = S.recents || [];
+  for (var i = 0; i < old.length; i++) {
+    if (!sameDest(dest, old[i])) next.push(old[i]);
+    if (next.length >= MAX_RECENTS) break;
+  }
+  S.recents = next;
+  saveStore();
+  renderRecents();
+}
+
+// ── Selected section ─────────────────────────────────────
+function showSelSection(dest, startPreview) {
+  var sec = qs('#selSection');
   if (!sec) return;
-  if (!S.active || !S.active.lat) { sec.style.display = 'none'; return; }
   sec.style.display = '';
-  var n = qs('#destName'), a = qs('#destAddr');
-  if (n) n.textContent = S.active.name    || 'Selected destination';
-  if (a) a.textContent = S.active.address || '';
+
+  qs('#selName').textContent = dest.name || 'Selected destination';
+
+  // Reset meta + map to loading state
+  var meta = qs('#selMeta');
+  if (meta) { meta.textContent = 'Getting route…'; meta.className = 'sel-meta muted'; }
+  setMapLoading(true);
+  setMapNote('');
+
+  // Preview collapsed/expanded
+  var pb = qs('#prevBody');
+  if (pb) pb.style.display = S.previewOpen ? '' : 'none';
+  var chev = qs('#prevChev');
+  if (chev) chev.className = 'prev-chev' + (S.previewOpen ? ' open' : '');
+
+  updateSaveChips();
+  closeCustPanel();
+
+  sec.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  if (startPreview) triggerPreview(dest);
 }
 
-function renderFavs() {
-  setFavItem('home', 'homeVal', 'pickHome');
-  setFavItem('work', 'workVal', 'pickWork');
+function setMapLoading(show) {
+  var ov = qs('#mapLoading'), img = qs('#mapImg');
+  if (ov)  ov.className  = show ? 'map-loading'        : 'map-loading hidden';
+  if (img) img.className = show ? 'map-img hidden'     : 'map-img';
 }
-function setFavItem(key, valId, rowId) {
-  var el = qs('#' + valId), row = qs('#' + rowId);
-  var d = S.favs[key];
-  if (el) {
-    el.textContent = d && d.name ? d.name : 'Not set — search to add';
-    el.className   = d && d.name ? 'pick-value' : 'pick-empty';
+
+function setMapNote(msg) {
+  var n = qs('#mapNote');
+  if (n) n.textContent = msg || '';
+}
+
+function togglePreview() {
+  S.previewOpen = !S.previewOpen;
+  var pb   = qs('#prevBody');
+  var chev = qs('#prevChev');
+  if (pb)   pb.style.display = S.previewOpen ? '' : 'none';
+  if (chev) chev.className   = 'prev-chev' + (S.previewOpen ? ' open' : '');
+}
+
+// ── Route preview ────────────────────────────────────────
+function triggerPreview(dest) {
+  if (!dest || !dest.lat) return;
+  var tok = currentToken();
+  if (!tok || tok.indexOf('pk.') !== 0) {
+    showPinOnly(tok, dest, 'No Mapbox token — add one in Advanced'); return;
   }
-  if (row) row.className = 'pick-item' + (d ? '' : ' disabled');
+  // Abort any previous in-flight preview
+  if (S.previewXhr) { try { S.previewXhr.abort(); } catch(e){} S.previewXhr = null; }
+
+  getLocation(function(coords) {
+    if (coords) {
+      fetchPreview(dest, coords, tok);
+    } else {
+      showPinOnly(tok, dest, 'Your location unavailable — destination shown');
+    }
+  });
 }
 
+function refreshPreview() {
+  // Called on mode change if a destination is already selected
+  if (S.active && S.active.lat) {
+    var meta = qs('#selMeta');
+    if (meta) { meta.textContent = 'Updating…'; meta.className = 'sel-meta muted'; }
+    setMapLoading(true);
+    triggerPreview(S.active);
+  }
+}
+
+function getLocation(cb) {
+  // Return cached coords if fresh
+  if (cachedCoords && Date.now() - cachedCoordsAt < COORDS_CACHE_MS) {
+    cb(cachedCoords); return;
+  }
+  if (!navigator.geolocation) { cb(null); return; }
+  var done = false;
+  var timer = setTimeout(function() {
+    if (!done) { done = true; cb(null); }
+  }, 6000);
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        cachedCoords   = pos.coords;
+        cachedCoordsAt = Date.now();
+        cb(pos.coords);
+      }
+    },
+    function() {
+      if (!done) { done = true; clearTimeout(timer); cb(null); }
+    },
+    { enableHighAccuracy:false, timeout:5000, maximumAge:60000 }
+  );
+}
+
+function fetchPreview(dest, coords, tok) {
+  var origin = coords.longitude.toFixed(6) + ',' + coords.latitude.toFixed(6);
+  var end    = parseFloat(dest.lon).toFixed(6) + ',' + parseFloat(dest.lat).toFixed(6);
+  var url    = 'https://api.mapbox.com/directions/v5/mapbox/' + S.profile +
+    '/' + origin + ';' + end +
+    '?overview=simplified&geometries=polyline' +
+    '&access_token=' + encodeURIComponent(tok);
+
+  var xhr = new XMLHttpRequest();
+  S.previewXhr = xhr;
+  xhr.open('GET', url); xhr.timeout = 10000;
+
+  xhr.onload = function() {
+    S.previewXhr = null;
+    if (xhr.status < 200 || xhr.status >= 300) {
+      showPinOnly(tok, dest, 'Route unavailable'); return;
+    }
+    try {
+      var data  = JSON.parse(xhr.responseText);
+      var route = data.routes && data.routes[0];
+      if (!route || !route.geometry) { showPinOnly(tok, dest, 'No route found'); return; }
+
+      // Update meta
+      var dist  = route.distance;
+      var dur   = route.duration;
+      var parts = [profileLabel(S.profile)];
+      if (isFinite(dist)) parts.push(fmtDist(dist));
+      if (isFinite(dur))  parts.push('about ' + fmtDur(dur));
+      var meta = qs('#selMeta');
+      if (meta) { meta.textContent = parts.join(' · '); meta.className = 'sel-meta'; }
+
+      // Build static map
+      var mapUrl = buildMapUrl(tok, dest.lon, dest.lat, route.geometry, coords.longitude, coords.latitude);
+      loadMapImg(mapUrl, '');
+
+    } catch(e) { showPinOnly(tok, dest, 'Could not parse route'); }
+  };
+  xhr.onerror   = function() { S.previewXhr = null; showPinOnly(tok, dest, 'Network error'); };
+  xhr.ontimeout = function() { S.previewXhr = null; showPinOnly(tok, dest, 'Request timed out'); };
+  xhr.send();
+}
+
+function showPinOnly(tok, dest, note) {
+  var meta = qs('#selMeta');
+  if (meta) { meta.textContent = note || ''; meta.className = 'sel-meta err'; }
+  if (!tok || !dest) { setMapLoading(false); return; }
+  var dLon = parseFloat(dest.lon).toFixed(5);
+  var dLat = parseFloat(dest.lat).toFixed(5);
+  var url  = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/' +
+    'pin-l+007AFF(' + dLon + ',' + dLat + ')/' +
+    dLon + ',' + dLat + ',13/680x400@2x' +
+    '?padding=70,20,70,20&access_token=' + encodeURIComponent(tok);
+  loadMapImg(url, note || '');
+}
+
+function buildMapUrl(tok, dLon, dLat, poly, oLon, oLat) {
+  var dlo = parseFloat(dLon).toFixed(5);
+  var dla = parseFloat(dLat).toFixed(5);
+  var parts = [
+    'path-4+007AFF-0.75(' + encodeURIComponent(poly) + ')',
+    'pin-s+22c55e(' + oLon.toFixed(5) + ',' + oLat.toFixed(5) + ')',
+    'pin-l+dc143c(' + dlo + ',' + dla + ')'
+  ];
+  var url = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/' +
+    parts.join(',') + '/auto/680x420@2x' +
+    '?padding=50,20,70,20&access_token=' + encodeURIComponent(tok);
+  // URL safety — fall back to pin-only if polyline makes it too long
+  if (url.length > 8000) {
+    return 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/' +
+      'pin-s+22c55e(' + oLon.toFixed(5) + ',' + oLat.toFixed(5) + '),' +
+      'pin-l+dc143c(' + dlo + ',' + dla + ')/auto/680x420@2x' +
+      '?padding=60,20,60,20&access_token=' + encodeURIComponent(tok);
+  }
+  return url;
+}
+
+function loadMapImg(src, note) {
+  var img = qs('#mapImg');
+  if (!img) return;
+  img.onload = function() {
+    setMapLoading(false);
+    img.className = 'map-img';
+    setMapNote(note || '');
+  };
+  img.onerror = function() {
+    setMapLoading(false);
+    img.className = 'map-img hidden';
+    setMapNote('Map preview unavailable');
+  };
+  img.src = src;
+}
+
+// ── Save-as chips ────────────────────────────────────────
+function updateSaveChips() {
+  var hc = qs('#saveHomeChip'), wc = qs('#saveWorkChip');
+  if (hc) {
+    var isH = S.active && S.favs.home && sameDest(S.active, S.favs.home);
+    hc.textContent = isH ? '🏠 Saved as Home ✓' : '🏠 Set as Home';
+    hc.className   = 'save-chip' + (isH ? ' done' : '');
+  }
+  if (wc) {
+    var isW = S.active && S.favs.work && sameDest(S.active, S.favs.work);
+    wc.textContent = isW ? '💼 Saved as Work ✓' : '💼 Set as Work';
+    wc.className   = 'save-chip' + (isW ? ' done' : '');
+  }
+}
+
+function openCustPanel() {
+  var p = qs('#custPanel'); if (p) p.classList.add('open');
+  var i = qs('#custLabelInp'); if (i) setTimeout(function() { i.focus(); }, 100);
+}
+function closeCustPanel() {
+  var p = qs('#custPanel'); if (p) p.classList.remove('open');
+  var i = qs('#custLabelInp'); if (i) i.value = '';
+}
+
+// ── Recents ──────────────────────────────────────────────
 function renderRecents() {
-  var c = qs('#recentsList');
-  if (!c) return;
+  var c = qs('#recList'); if (!c) return;
   var recs = S.recents || [];
-  if (!recs.length) { c.innerHTML = '<div class="empty-msg">No recent destinations yet.</div>'; return; }
+  if (!recs.length) {
+    c.innerHTML = '<div class="empty-msg">No recent destinations yet.</div>'; return;
+  }
   var html = '', max = Math.min(recs.length, 5);
   for (var i = 0; i < max; i++) {
     var d = recs[i];
-    html += '<div class="recent-item" data-rec="' + i + '">' +
-      '<span class="rec-icon">🕐</span>' +
-      '<div><div class="rec-name">' + esc(d.name || 'Unnamed') + '</div>' +
-      '<div class="rec-addr">' + esc(d.address || '') + '</div></div>' +
-      '<span class="chev">›</span></div>';
+    html += '<div class="rec-item" data-rec="' + i + '">' +
+      '<span class="rec-ic">🕐</span>' +
+      '<div><div class="rec-name">' + esc(d.name||'Unnamed') + '</div>' +
+      '<div class="rec-addr">' + esc(shortAddr(d.address||'')) + '</div></div>' +
+      '<span class="rec-chev">›</span></div>';
   }
   c.innerHTML = html;
   var items = qsa('[data-rec]');
   for (var j = 0; j < items.length; j++) {
     items[j].addEventListener('click', function() {
-      var d = S.recents[parseInt(this.getAttribute('data-rec'), 10)];
-      if (d) selectDest(d, false);
+      var d = S.recents[parseInt(this.getAttribute('data-rec'),10)];
+      if (d) selectDest(d);
     });
   }
 }
 
-function updateSaveBtn() {
-  var btn = qs('#saveBtn');
-  if (btn) btn.disabled = !(S.active && S.active.lat);
+// ── Mode ─────────────────────────────────────────────────
+function renderMode() {
+  var btns = qsa('[data-prof]');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].className = 'mode-btn' +
+      (btns[i].getAttribute('data-prof') === S.profile ? ' on' : '');
+  }
 }
 
-// ── Search Box API ─────────────────────────────────────────────────
+// ── Search (Mapbox Search Box API) ────────────────────────
 function doSuggest(q) {
   var tok = currentToken();
   if (!tok || tok.indexOf('pk.') !== 0) {
@@ -343,14 +1083,14 @@ function doSuggest(q) {
     try { renderSugs(JSON.parse(xhr.responseText).suggestions || []); }
     catch(e) { setStatus('Could not read results.', true); }
   };
-  xhr.onerror   = function() { if (xhr !== pendXhr) return; pendXhr = null; setStatus('Network error.', true); };
-  xhr.ontimeout = function() { if (xhr !== pendXhr) return; pendXhr = null; setStatus('Search timed out.', true); };
+  xhr.onerror   = function() { if (xhr!==pendXhr) return; pendXhr=null; setStatus('Network error.',true); };
+  xhr.ontimeout = function() { if (xhr!==pendXhr) return; pendXhr=null; setStatus('Search timed out.',true); };
   xhr.send();
 }
 
 function doRetrieve(mapboxId, suggName, suggAddr) {
   var tok = currentToken();
-  setStatus('Getting details\u2026'); clearSugs();
+  setStatus('Getting details…'); clearSugs();
   var url = 'https://api.mapbox.com/search/searchbox/v1/retrieve/' +
     encodeURIComponent(mapboxId) +
     '?session_token=' + encodeURIComponent(sessionTok) +
@@ -361,103 +1101,84 @@ function doRetrieve(mapboxId, suggName, suggAddr) {
     if (xhr.status < 200 || xhr.status >= 300) { setStatus('Error ' + xhr.status + '.', true); return; }
     try {
       var data = JSON.parse(xhr.responseText);
-      var f = data.features && data.features[0];
-      if (!f || !f.geometry || !f.geometry.coordinates) { setStatus('No coordinates found.', true); return; }
+      var f    = data.features && data.features[0];
+      if (!f || !f.geometry || !f.geometry.coordinates) { setStatus('No coordinates found.',true); return; }
       var c = f.geometry.coordinates, p = f.properties || {};
       var dest = {
-        name:    p.name || suggName || 'Destination',
-        address: p.full_address || p.place_formatted || p.address || suggAddr || '',
+        name:     p.name || suggName || 'Destination',
+        address:  p.full_address || p.place_formatted || p.address || suggAddr || '',
         lon: String(c[0]), lat: String(c[1]),
         mapboxId: mapboxId, savedAt: Date.now()
       };
-      selectDest(dest, true);
-      sessionTok = uuid4(); // Mapbox billing: new session after retrieve
+      sessionTok = uuid4(); // reset session after retrieve (Mapbox billing)
       setStatus('');
       var si = qs('#search'); if (si) si.value = '';
-    } catch(e) { setStatus('Could not read destination details.', true); }
+      selectDest(dest);
+    } catch(e) { setStatus('Could not read details.',true); }
   };
-  xhr.onerror   = function() { setStatus('Network error.', true); };
-  xhr.ontimeout = function() { setStatus('Request timed out.', true); };
+  xhr.onerror   = function() { setStatus('Network error.',true); };
+  xhr.ontimeout = function() { setStatus('Request timed out.',true); };
   xhr.send();
 }
 
 var FT_ICON = { poi:'📍', address:'🏠', place:'🏙️', street:'🛣️', neighborhood:'🏘️', locality:'🏙️' };
-
 function renderSugs(sugs) {
-  var c = qs('#suggestions');
-  if (!c) return;
+  var c = qs('#sugs'); if (!c) return;
   if (!sugs.length) { c.innerHTML = ''; setStatus('No results found.'); return; }
   setStatus('');
   var html = '';
   for (var i = 0; i < sugs.length; i++) {
     var s = sugs[i], ic = FT_ICON[s.feature_type] || '📍';
     var addr = s.full_address || s.place_formatted || s.address || '';
-    html += '<div class="suggestion"' +
-      ' data-id="'   + esc(s.mapbox_id || '') + '"' +
-      ' data-name="' + esc(s.name      || '') + '"' +
-      ' data-addr="' + esc(addr)              + '">' +
-      '<span class="sug-icon">' + ic + '</span>' +
-      '<div><div class="sug-name">' + esc(s.name || 'Unnamed') + '</div>' +
+    html += '<div class="sug"' +
+      ' data-id="'   + esc(s.mapbox_id||'') + '"' +
+      ' data-name="' + esc(s.name||'')      + '"' +
+      ' data-addr="' + esc(addr)            + '">' +
+      '<span class="sug-ic">' + ic + '</span>' +
+      '<div><div class="sug-name">' + esc(s.name||'Unnamed') + '</div>' +
       '<div class="sug-addr">' + esc(addr) + '</div></div></div>';
   }
   c.innerHTML = html;
-  var items = qsa('.suggestion');
+  var items = qsa('.sug');
   for (var j = 0; j < items.length; j++) {
     items[j].addEventListener('click', function() {
       doRetrieve(this.getAttribute('data-id'), this.getAttribute('data-name'), this.getAttribute('data-addr'));
     });
   }
 }
-
-function clearSugs() { var c = qs('#suggestions'); if (c) c.innerHTML = ''; }
+function clearSugs() { var c = qs('#sugs'); if (c) c.innerHTML = ''; }
 function setStatus(msg, isErr) {
   var el = qs('#srchStatus'); if (!el) return;
   el.textContent = msg || '';
   el.className = 'srch-status' + (isErr ? ' err' : '');
 }
-function currentToken() {
-  var ti = qs('#tokenInput');
-  return (ti ? ti.value.trim() : '') || S.token;
-}
 
-// ── Destination selection ──────────────────────────────────────────
-function selectDest(dest, addRecent) {
-  S.active = dest;
-  if (addRecent) {
-    var next = [dest], old = S.recents || [];
-    for (var i = 0; i < old.length; i++) {
-      if (!sameDest(dest, old[i])) next.push(old[i]);
-      if (next.length >= 8) break;
+// ── Slot removal ─────────────────────────────────────────
+function removeSlot(slot) {
+  if (slot === 'home') {
+    if (S.active && S.favs.home && sameDest(S.active, S.favs.home)) {
+      S.active = null; var ss = qs('#selSection'); if (ss) ss.style.display = 'none';
     }
-    S.recents = next;
-    saveStore();
+    S.favs.home = null;
+  } else if (slot === 'work') {
+    if (S.active && S.favs.work && sameDest(S.active, S.favs.work)) {
+      S.active = null; var ss2 = qs('#selSection'); if (ss2) ss2.style.display = 'none';
+    }
+    S.favs.work = null;
+  } else {
+    S.favs.custom = S.favs.custom.filter(function(c) { return c.id !== slot; });
   }
-  renderAll();
-  var sec = qs('#currentSection');
-  if (sec) setTimeout(function() { sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 80);
-}
-
-function sameDest(a, b) {
-  if (!a || !b) return false;
-  if (a.mapboxId && b.mapboxId) return a.mapboxId === b.mapboxId;
-  return a.lat === b.lat && a.lon === b.lon;
-}
-
-function saveFav(key) {
-  if (!S.active) { alert('Choose a destination first.'); return; }
-  if (!S.favs) S.favs = {};
-  S.favs[key] = S.active;
   saveStore();
-  renderFavs();
-  var btn = qs(key === 'home' ? '#saveHome' : '#saveWork');
-  if (btn) {
-    var orig = btn.textContent;
-    btn.textContent = '\u2713 Saved!';
-    setTimeout(function() { btn.textContent = orig; }, 1600);
-  }
+  renderCards();
+  updateSaveBtn();
 }
 
-// ── Save / Cancel ──────────────────────────────────────────────────
+// ── Save / cancel ────────────────────────────────────────
+function updateSaveBtn() {
+  var btn = qs('#saveBtn');
+  if (btn) btn.disabled = !(S.active && S.active.lat);
+}
+
 function doSave() {
   if (!S.active || !S.active.lat) { alert('Choose a destination first.'); return; }
   var tok = currentToken();
@@ -465,31 +1186,23 @@ function doSave() {
     var ab = qs('#advBody');
     if (ab && !ab.classList.contains('open')) {
       ab.classList.add('open');
-      var arr = qs('#advArrow'); if (arr) arr.textContent = '\u2039';
+      var arr = qs('#advArr'); if (arr) arr.textContent = '\u2039';
     }
     alert('A Mapbox public token (starts with pk.) is required.\nOpen \u2699 Advanced to add one.');
     return;
   }
-
-  // Return active destination + favourites so JS can populate the watch carousel.
   var result = {
     mapboxToken: tok,
     profile:     S.profile,
-    destName:    S.active.name    || '',
+    destName:    S.active.name || '',
     destLat:     S.active.lat,
     destLon:     S.active.lon,
-    favHome: S.favs.home ? {
-      name: S.favs.home.name || 'Home',
-      lat:  S.favs.home.lat,
-      lon:  S.favs.home.lon
-    } : null,
-    favWork: S.favs.work ? {
-      name: S.favs.work.name || 'Work',
-      lat:  S.favs.work.lat,
-      lon:  S.favs.work.lon
-    } : null
+    favHome: S.favs.home ? { name: S.favs.home.name||'Home', lat: S.favs.home.lat, lon: S.favs.home.lon } : null,
+    favWork: S.favs.work ? { name: S.favs.work.name||'Work', lat: S.favs.work.lat, lon: S.favs.work.lon } : null,
+    favCustom: S.favs.custom.map(function(c) {
+      return { id:c.id, label:c.label, name:c.name, lat:c.lat, lon:c.lon };
+    })
   };
-
   var rt = getParam('return_to', 'pebblejs://close#');
   document.location = rt + encodeURIComponent(JSON.stringify(result));
 }
@@ -498,8 +1211,9 @@ function doCancel() {
   document.location = getParam('return_to', 'pebblejs://close#');
 }
 
-// ── Event binding ──────────────────────────────────────────────────
+// ── Event binding ────────────────────────────────────────
 function bindAll() {
+  // Search
   var si = qs('#search');
   if (si) {
     si.addEventListener('input', function() {
@@ -510,23 +1224,106 @@ function bindAll() {
     });
   }
 
-  var pbtns = qsa('[data-prof]');
-  for (var i = 0; i < pbtns.length; i++) {
-    pbtns[i].addEventListener('click', function() {
+  // Replace-mode cancel
+  var rc = qs('#replCancelBtn');
+  if (rc) rc.addEventListener('click', function() { clearReplacing(); clearSugs(); setStatus(''); });
+
+  // Mode buttons
+  var mbtns = qsa('[data-prof]');
+  for (var i = 0; i < mbtns.length; i++) {
+    mbtns[i].addEventListener('click', function() {
       S.profile = this.getAttribute('data-prof');
-      renderProfile();
+      renderMode();
+      refreshPreview();
     });
   }
 
-  var ph = qs('#pickHome');
-  if (ph) ph.addEventListener('click', function() { if (S.favs.home) selectDest(S.favs.home, false); });
-  var pw = qs('#pickWork');
-  if (pw) pw.addEventListener('click', function() { if (S.favs.work) selectDest(S.favs.work, false); });
+  // Preview toggle (tap header)
+  var hdr = qs('#selHeader');
+  if (hdr) hdr.addEventListener('click', togglePreview);
 
-  var sh = qs('#saveHome'); if (sh) sh.addEventListener('click', function() { saveFav('home'); });
-  var sw = qs('#saveWork'); if (sw) sw.addEventListener('click', function() { saveFav('work'); });
+  // Save-as: home
+  var shc = qs('#saveHomeChip');
+  if (shc) shc.addEventListener('click', function() {
+    if (!S.active) return;
+    S.favs.home = toFav(S.active);
+    saveStore(); renderCards(); updateSaveChips();
+    var btn = this, orig = btn.textContent;
+    btn.textContent = '🏠 Saved as Home ✓'; btn.className = 'save-chip done';
+    setTimeout(function() { updateSaveChips(); }, 2000);
+  });
 
-  var at = qs('#advToggle'), ab = qs('#advBody'), arr = qs('#advArrow');
+  // Save-as: work
+  var swc = qs('#saveWorkChip');
+  if (swc) swc.addEventListener('click', function() {
+    if (!S.active) return;
+    S.favs.work = toFav(S.active);
+    saveStore(); renderCards(); updateSaveChips();
+    var btn = this, orig2 = btn.textContent;
+    btn.textContent = '💼 Saved as Work ✓'; btn.className = 'save-chip done';
+    setTimeout(function() { updateSaveChips(); }, 2000);
+  });
+
+  // Save-as: custom toggle panel
+  var scc = qs('#saveCustomChip');
+  if (scc) scc.addEventListener('click', function() {
+    var p = qs('#custPanel');
+    if (p) p.classList.toggle('open');
+    var inp = qs('#custLabelInp');
+    if (inp && p && p.classList.contains('open')) inp.focus();
+  });
+
+  // Confirm custom save
+  var ccs = qs('#confirmCust');
+  if (ccs) ccs.addEventListener('click', function() {
+    var inp   = qs('#custLabelInp');
+    var label = inp ? inp.value.trim() : '';
+    if (!label) { if (inp) inp.focus(); return; }
+    if (!S.active) return;
+    if (S.favs.custom.length >= MAX_CUSTOM) {
+      alert('Maximum ' + MAX_CUSTOM + ' custom destinations.\nRemove one first.'); return;
+    }
+    var fav   = toFav(S.active);
+    fav.id    = 'c-' + uuid4().substring(0,8);
+    fav.label = label;
+    S.favs.custom.push(fav);
+    saveStore();
+    renderCards();
+    closeCustPanel();
+    updateSaveChips();
+  });
+
+  // Card management bar — Replace
+  var repBtn = qs('#replaceBtn');
+  if (repBtn) repBtn.addEventListener('click', function() {
+    var slot = S.managingSlot; if (!slot) return;
+    if (slot === 'home' || slot === 'work') {
+      beginReplacing(slot);
+    } else {
+      // Custom slot replace
+      var found = null;
+      for (var i = 0; i < S.favs.custom.length; i++) {
+        if (S.favs.custom[i].id === slot) { found = S.favs.custom[i]; break; }
+      }
+      S.replacingSlot = found ? { id: slot, label: found.label } : slot;
+      showReplBanner('🔄 Replacing ' + getLabelForSlot(slot) + ' — search for new location');
+      focusSearch();
+      closeActBar();
+    }
+  });
+
+  // Card management bar — Remove
+  var remBtn2 = qs('#removeBtn');
+  if (remBtn2) remBtn2.addEventListener('click', function() {
+    var slot = S.managingSlot; if (slot) { removeSlot(slot); closeActBar(); }
+  });
+
+  // Card management bar — Cancel
+  var canAct = qs('#cancelActBtn');
+  if (canAct) canAct.addEventListener('click', closeActBar);
+
+  // Advanced toggle
+  var at = qs('#advToggle'), ab = qs('#advBody'), arr = qs('#advArr');
   if (at && ab) {
     at.addEventListener('click', function() {
       var open = ab.classList.toggle('open');
@@ -534,15 +1331,15 @@ function bindAll() {
     });
   }
 
-  var sb = qs('#saveBtn'); if (sb) sb.addEventListener('click', doSave);
+  // Save / Cancel
+  var sb = qs('#saveBtn');  if (sb) sb.addEventListener('click', doSave);
   var cb = qs('#cancelBtn'); if (cb) cb.addEventListener('click', doCancel);
 }
 
+// ── Boot ─────────────────────────────────────────────────
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+} else { init(); }
 
 }());
 </script>
