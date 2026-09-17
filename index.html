@@ -3,164 +3,780 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f2f2f7">
+<meta name="theme-color" content="#1c1c1e">
 <title>GlanceNav</title>
 <style>
+/* ── Reset ──────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;background:#f2f2f7;color:#111;padding-bottom:82px}
-button,input,select{font:inherit}
-.mini-hdr{padding:10px 16px 9px;display:flex;align-items:baseline;gap:7px;border-bottom:1px solid #e5e5ea}
-.mini-hdr-name{font-size:15px;font-weight:700}.mini-hdr-ver{font-size:11px;color:#8e8e93}
-.sec-lbl{padding:14px 16px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73}
-.sticky-srch{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #e5e5ea}
-.repl-banner{display:none;padding:7px 16px;font-size:13px;font-weight:600;background:#fff8e6;color:#7a5500;border-bottom:1px solid #f0e0a0}
-.repl-banner.show{display:flex;align-items:center;gap:8px}.repl-cancel{margin-left:auto;color:#007aff;font-weight:700;cursor:pointer}
-.srch-field-wrap{position:relative;padding:10px 12px}.srch-ic{position:absolute;left:24px;top:50%;transform:translateY(-50%);font-size:17px;pointer-events:none}
-.srch-input{width:100%;height:48px;padding:0 14px 0 42px;font-size:16px;border:1.5px solid #e5e5ea;border-radius:12px;background:#f2f2f7;color:#111;outline:none;-webkit-appearance:none}
-.srch-input:focus{border-color:#007aff;background:#fff}.srch-input::placeholder{color:#8e8e93}
-.sugs{background:#fff;border-bottom:1px solid #e5e5ea}.sug{padding:12px 16px;display:flex;align-items:flex-start;gap:10px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px}
-.sug:last-child{border-bottom:none}.sug:active{background:#eef5ff}.sug-ic{font-size:18px;flex-shrink:0;width:24px;text-align:center}.sug-name{font-size:15px;font-weight:600}.sug-addr{font-size:12px;color:#8e8e93;margin-top:2px}
-.srch-status{padding:8px 16px;font-size:13px;color:#666;background:#fff;border-bottom:1px solid #e5e5ea}.srch-status:empty{display:none}.srch-status.err{color:#c00000}
-.card-strip{display:flex;gap:10px;padding:0 16px 14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}.card-strip::-webkit-scrollbar{display:none}
-.dest-card{flex:0 0 auto;width:104px;min-height:96px;background:#fff;border:2px solid #e5e5ea;border-radius:14px;padding:11px 8px 9px;cursor:pointer;scroll-snap-align:start;position:relative;-webkit-tap-highlight-color:transparent}
-.dest-card:active{background:#f5f5f7}.dest-card.active{border-color:#007aff;background:#eef5ff}.add-card{border-style:dashed;border-color:#c7c7cc;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8e8e93}
-.card-more{position:absolute;top:3px;right:3px;width:24px;height:24px;font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#c7c7cc}.card-more:active{background:rgba(0,0,0,.06)}
-.card-ic{font-size:24px;display:block;text-align:center;margin:0 auto 3px}.card-lbl{font-size:12px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-addr{font-size:10px;color:#8e8e93;text-align:center;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-profile{font-size:10px;color:#007aff;text-align:center;margin-top:3px}.card-dot{width:5px;height:5px;background:#007aff;border-radius:50%;position:absolute;bottom:5px;left:50%;transform:translateX(-50%)}
-.card-act-bar{display:none;flex-wrap:wrap;gap:8px;padding:10px 16px 12px;background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea}.card-act-bar.open{display:flex}.card-act-lbl{width:100%;font-size:12px;color:#6e6e73}.act-chip{padding:8px 14px;font-size:14px;font-weight:600;border:1.5px solid #e5e5ea;border-radius:20px;background:#f2f2f7;cursor:pointer}.act-chip.del{color:#c00000;border-color:#f2d5d5;background:#fff5f5}.act-chip.can{color:#007aff;border-color:#cce0ff;background:#eef5ff}
-.sel-section{background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:12px}.sel-header{display:flex;align-items:center;padding:14px 16px 10px;gap:10px;cursor:pointer}.sel-hdr-text{flex:1;min-width:0}.sel-name{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sel-meta{font-size:13px;color:#007aff;margin-top:2px;font-weight:500}.sel-meta.muted,.sel-meta.err{color:#8e8e93}.prev-chev{font-size:19px;color:#c7c7cc;padding:4px;transition:transform .2s}.prev-chev.open{transform:rotate(180deg)}
-.context-label{padding:2px 16px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#6e6e73}.mode-bar{display:flex;padding:0 16px 14px}.mode-btn{flex:1;padding:10px 4px;font-size:13px;font-weight:600;border:1.5px solid #e5e5ea;background:#f2f2f7;color:#3c3c43;cursor:pointer;text-align:center}.mode-btn:first-child{border-radius:10px 0 0 10px}.mode-btn:last-child{border-radius:0 10px 10px 0}.mode-btn+.mode-btn{border-left:none}.mode-btn.on{background:#007aff;border-color:#007aff;color:#fff;position:relative;z-index:1}
-.map-area{position:relative;background:#e5e5ea;overflow:hidden;min-height:170px}.map-img{width:100%;height:auto;display:block}.map-img.hidden{display:none}.map-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#e5e5ea;font-size:13px;color:#8e8e93}.map-loading.hidden{display:none}.pulse-row{display:flex;gap:6px}.pdot{width:8px;height:8px;border-radius:50%;background:#007aff;animation:pulse 1.2s ease-in-out infinite}.pdot:nth-child(2){animation-delay:.2s}.pdot:nth-child(3){animation-delay:.4s}@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}.map-note{padding:7px 14px;font-size:12px;color:#8e8e93;text-align:center;border-top:1px solid #f2f2f7}.map-note:empty{display:none}
-.save-as-row{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px}.save-chip{padding:8px 14px;font-size:14px;font-weight:600;border:1.5px solid #007aff;border-radius:20px;color:#007aff;background:#fff;cursor:pointer}.save-chip.done{background:#007aff;color:#fff}.custom-save-panel{display:none;padding:0 16px 14px;gap:8px}.custom-save-panel.open{display:flex}.cust-label-inp{flex:1;padding:10px 12px;border:1.5px solid #e5e5ea;border-radius:10px;background:#f2f2f7;outline:none}.cust-save-btn{padding:10px 16px;font-weight:700;border:none;border-radius:10px;background:#007aff;color:#fff}
-.rec-card{background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:16px}.rec-item{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px}.rec-item:last-child{border-bottom:none}.rec-item:active{background:#f5f5f5}.rec-ic{font-size:16px;width:26px;text-align:center}.rec-text{flex:1;min-width:0}.rec-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rec-addr{font-size:12px;color:#8e8e93;margin-top:2px}.rec-profile{font-size:11px;color:#007aff;margin-top:2px}.rec-chev{font-size:20px;color:#c7c7cc}.empty-msg{padding:14px 16px;font-size:14px;color:#aaa;font-style:italic}
-.adv-toggle{margin-top:20px;padding:14px 16px;font-size:15px;color:#007aff;cursor:pointer;display:flex;align-items:center;gap:8px;background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea}.adv-arr{margin-left:auto;font-size:22px;color:#c7c7cc}.adv-body{display:none;background:#fff;padding:4px 16px 16px;border-bottom:1px solid #e5e5ea}.adv-body.open{display:block}.adv-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73;margin:14px 0 6px}.pref-input{width:100%;padding:12px;font-size:14px;border:1.5px solid #e5e5ea;border-radius:10px;background:#f2f2f7;color:#111;outline:none;-webkit-appearance:none}.tok-input{font-family:'Courier New',monospace;font-size:13px}.pref-input:focus{border-color:#007aff;background:#fff}.adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}.beta-row{display:flex;align-items:center;gap:10px;padding:7px 0}.beta-row input{width:20px;height:20px}.provider-area{display:none;margin-top:8px}.provider-area.show{display:block}.end-space{height:20px}
-.save-bar{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:10px 16px max(10px,env(safe-area-inset-bottom));background:rgba(242,242,247,.96);border-top:1px solid #e5e5ea;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}.btn-cancel{width:90px;height:50px;font-size:16px;font-weight:600;border:none;border-radius:12px;background:#e5e5ea;color:#3c3c43}.btn-save{flex:1;height:50px;font-size:17px;font-weight:700;border:none;border-radius:12px;background:#007aff;color:#fff}.btn-save:disabled{background:#c7c7cc}
+/* ── Base ───────────────────────────────────────────────────────────── */
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;
+  -webkit-text-size-adjust:100%;padding-bottom:88px
+}
+/* ── Header ─────────────────────────────────────────────────────────── */
+.hdr{
+  background:#1c1c1e;color:#fff;
+  padding:16px 16px 14px;
+  display:flex;align-items:center;gap:12px
+}
+.hdr-icon{font-size:26px;line-height:1;flex-shrink:0}
+.hdr-title{font-size:19px;font-weight:700;letter-spacing:-.3px}
+.hdr-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:2px}
+/* ── Search bar (sticky) ────────────────────────────────────────────── */
+.search-bar{
+  background:#fff;padding:10px 12px;
+  border-bottom:1px solid #e5e5ea;
+  position:sticky;top:0;z-index:20
+}
+.search-wrap{position:relative}
+.search-input{
+  width:100%;height:48px;
+  padding:0 14px 0 44px;
+  font-size:16px;
+  border:1.5px solid #e5e5ea;border-radius:12px;
+  background:#f2f2f7;color:#111;
+  outline:none;-webkit-appearance:none;
+  transition:border-color .15s,background .15s
+}
+.search-input:focus{border-color:#007AFF;background:#fff}
+.search-input::placeholder{color:#8e8e93}
+.search-icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  font-size:17px;pointer-events:none;line-height:1
+}
+/* ── Suggestions list ───────────────────────────────────────────────── */
+.suggestions{background:#fff;border-bottom:1px solid #e5e5ea}
+.suggestion{
+  padding:12px 16px;cursor:pointer;
+  border-bottom:1px solid #f2f2f7;
+  display:flex;align-items:flex-start;gap:10px;
+  -webkit-tap-highlight-color:rgba(0,122,255,.08);
+  min-height:52px
+}
+.suggestion:last-child{border-bottom:none}
+.suggestion:active{background:#eef5ff}
+.sug-icon{font-size:18px;flex-shrink:0;padding-top:1px;width:24px;text-align:center}
+.sug-name{font-size:15px;font-weight:600;color:#111}
+.sug-addr{font-size:12px;color:#8e8e93;margin-top:2px;line-height:1.3}
+/* ── Search status ──────────────────────────────────────────────────── */
+.srch-status{
+  padding:8px 16px;font-size:13px;color:#666;
+  background:#fff;border-bottom:1px solid #e5e5ea
+}
+.srch-status:empty{display:none}
+.srch-status.err{color:#c00000}
+/* ── Section grouping ───────────────────────────────────────────────── */
+.section{
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea;
+  margin-top:20px
+}
+.sec-hdr{
+  padding:12px 16px 5px;
+  font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.7px;
+  color:#6e6e73
+}
+/* ── Current destination card ───────────────────────────────────────── */
+.dest-card{
+  padding:14px 16px;
+  display:flex;align-items:flex-start;gap:12px
+}
+.dest-icon{font-size:26px;flex-shrink:0;line-height:1;padding-top:1px}
+.dest-name{font-size:17px;font-weight:700;color:#111}
+.dest-addr{font-size:13px;color:#666;margin-top:3px;line-height:1.3}
+.dest-fav-row{
+  display:flex;gap:8px;
+  padding:0 16px 14px
+}
+.dest-fav-btn{
+  flex:1;padding:10px 6px;
+  font-size:14px;font-weight:600;
+  border:1.5px solid #007AFF;border-radius:10px;
+  color:#007AFF;background:#fff;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .1s
+}
+.dest-fav-btn:active{background:#eef5ff}
+/* ── Quick pick rows ────────────────────────────────────────────────── */
+.pick-item{
+  padding:14px 16px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid #f2f2f7;
+  cursor:pointer;min-height:62px;
+  -webkit-tap-highlight-color:rgba(0,0,0,.04);
+  transition:background .1s
+}
+.pick-item:last-child{border-bottom:none}
+.pick-item:active{background:#f5f5f5}
+.pick-item.disabled{opacity:.42;cursor:default}
+.pick-icon{font-size:22px;width:32px;text-align:center;flex-shrink:0}
+.pick-label{font-size:16px;font-weight:600;color:#111}
+.pick-value{font-size:13px;color:#555;margin-top:2px}
+.pick-empty{font-size:13px;color:#aaa;margin-top:2px;font-style:italic}
+.chev{margin-left:auto;font-size:20px;color:#c7c7cc;padding-left:6px;flex-shrink:0}
+/* ── Recent items ───────────────────────────────────────────────────── */
+.recent-item{
+  padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid #f2f2f7;
+  cursor:pointer;min-height:52px;
+  -webkit-tap-highlight-color:rgba(0,0,0,.04)
+}
+.recent-item:last-child{border-bottom:none}
+.recent-item:active{background:#f5f5f5}
+.rec-icon{font-size:16px;width:26px;text-align:center;flex-shrink:0;color:#8e8e93}
+.rec-name{font-size:15px;font-weight:600;color:#111}
+.rec-addr{font-size:12px;color:#8e8e93;margin-top:2px}
+.empty-msg{padding:14px 16px;font-size:14px;color:#aaa;font-style:italic}
+/* ── Route profile selector ─────────────────────────────────────────── */
+.profile-row{display:flex;gap:0;padding:12px 16px 16px}
+.profile-btn{
+  flex:1;padding:12px 4px;
+  font-size:13px;font-weight:600;
+  border:1.5px solid #e5e5ea;background:#f2f2f7;
+  cursor:pointer;color:#3c3c43;text-align:center;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .12s,color .12s
+}
+.profile-btn:first-child{border-radius:10px 0 0 10px}
+.profile-btn:last-child{border-radius:0 10px 10px 0}
+.profile-btn:not(:first-child){border-left:none}
+.profile-btn.on{
+  background:#007AFF;border-color:#007AFF;
+  color:#fff;position:relative;z-index:1
+}
+/* ── Toggle row (iOS-style) ─────────────────────────────────────────── */
+/* v0.15b: Turn alerts toggle */
+.toggle-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;
+  border-bottom:1px solid #f2f2f7;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  min-height:52px
+}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:16px;color:#111;font-weight:400}
+/* Hide native checkbox */
+.toggle-row input[type="checkbox"]{
+  position:absolute;opacity:0;width:0;height:0
+}
+/* Track */
+.toggle-track{
+  position:relative;width:51px;height:31px;
+  background:#e5e5ea;border-radius:16px;
+  transition:background .2s;flex-shrink:0
+}
+/* Thumb */
+.toggle-track::after{
+  content:'';
+  position:absolute;top:2px;left:2px;
+  width:27px;height:27px;
+  border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);
+  transition:transform .2s
+}
+/* Checked state */
+.toggle-row input:checked + .toggle-track{background:#34c759}
+.toggle-row input:checked + .toggle-track::after{transform:translateX(20px)}
+/* Hint text below section */
+.sec-hint{
+  font-size:13px;color:#6c6c70;
+  padding:6px 16px 14px;
+  line-height:1.4
+}
+/* ── Advanced section ───────────────────────────────────────────────── */
+.adv-toggle{
+  padding:14px 16px;font-size:15px;color:#007AFF;
+  cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea;
+  margin-top:20px;
+  -webkit-tap-highlight-color:transparent
+}
+.adv-arrow{margin-left:auto;font-size:22px;color:#c7c7cc;transition:transform .2s}
+.adv-body{display:none;background:#fff;padding:0 16px 16px;border-bottom:1px solid #e5e5ea}
+.adv-body.open{display:block}
+.adv-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73;margin:12px 0 6px}
+.token-input{
+  width:100%;padding:12px;
+  font-size:13px;font-family:'Courier New',monospace;
+  border:1.5px solid #e5e5ea;border-radius:10px;
+  background:#f2f2f7;color:#111;
+  -webkit-appearance:none;outline:none
+}
+.token-input:focus{border-color:#007AFF;background:#fff}
+.adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}
+/* ── Bottom spacer + fixed save bar ────────────────────────────────── */
+.end-space{height:16px}
+.save-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  display:flex;gap:10px;
+  padding:10px 16px env(safe-area-inset-bottom,12px);
+  background:rgba(242,242,247,.96);
+  border-top:1px solid #e5e5ea;
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px)
+}
+.btn-cancel{
+  width:90px;height:50px;
+  font-size:16px;font-weight:600;
+  border:none;border-radius:12px;
+  background:#e5e5ea;color:#3c3c43;
+  cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent
+}
+.btn-cancel:active{opacity:.7}
+.btn-save{
+  flex:1;height:50px;
+  font-size:17px;font-weight:700;
+  border:none;border-radius:12px;
+  background:#007AFF;color:#fff;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .12s,opacity .12s
+}
+.btn-save:disabled{background:#c7c7cc;cursor:default}
+.btn-save:not(:disabled):active{background:#005ecb}
 </style>
 </head>
 <body>
-<div class="mini-hdr"><span class="mini-hdr-name">🧭 GlanceNav</span><span class="mini-hdr-ver">v0.7</span></div>
+<header class="hdr">
+  <div class="hdr-icon">🧭</div>
+  <div>
+    <div class="hdr-title">GlanceNav</div>
+    <div class="hdr-sub">Pebble navigation settings</div>
+  </div>
+</header>
 
-<!-- Search is the primary task -->
-<div class="sticky-srch">
-  <div class="repl-banner" id="replBanner"><span id="replBannerText"></span><span class="repl-cancel" id="replCancelBtn">✕ Cancel</span></div>
-  <div class="srch-field-wrap"><span class="srch-ic">🔍</span><input id="search" class="srch-input" type="text" placeholder="Where do you want to go?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
+<!-- Search (sticky at top) -->
+<div class="search-bar">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input id="search" class="search-input" type="text"
+           placeholder="Address, café, landmark..."
+           autocomplete="off" autocorrect="off"
+           autocapitalize="off" spellcheck="false">
+  </div>
 </div>
-<div id="sugs" class="sugs"></div><div id="srchStatus" class="srch-status"></div>
+<div id="suggestions" class="suggestions"></div>
+<div id="srchStatus" class="srch-status"></div>
 
-<div class="sec-lbl">QUICK START</div>
-<div class="card-strip" id="cardStrip"></div>
-<div class="card-act-bar" id="cardActBar"><div class="card-act-lbl" id="cardActLbl"></div><button class="act-chip" id="replaceBtn">Change location</button><button class="act-chip del" id="removeBtn">Remove</button><button class="act-chip can" id="cancelActBtn">Cancel</button></div>
-
-<div class="sel-section" id="selSection" style="display:none">
-  <div class="sel-header" id="selHeader"><div class="sel-hdr-text"><div class="sel-name" id="selName"></div><div class="sel-meta muted" id="selMeta">Getting route…</div></div><span class="prev-chev open" id="prevChev">▾</span></div>
-  <div class="context-label">Travel by</div>
-  <div class="mode-bar" id="destinationModeBar"><button class="mode-btn" data-prof="cycling">🚲 Cycling</button><button class="mode-btn" data-prof="walking">🚶 Walking</button><button class="mode-btn" data-prof="driving">🚗 Driving</button></div>
-  <div id="prevBody">
-    <div class="map-area"><div class="map-loading" id="mapLoading"><div class="pulse-row"><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div></div><span>Getting route…</span></div><img class="map-img hidden" id="mapImg" alt="Route preview"></div>
-    <div class="map-note" id="mapNote"></div>
-    <div class="save-as-row"><button class="save-chip" id="saveHomeChip">🏠 Set as Home</button><button class="save-chip" id="saveWorkChip">💼 Set as Work</button><button class="save-chip" id="saveCustomChip">★ Save as…</button></div>
-    <div class="custom-save-panel" id="custPanel"><input class="cust-label-inp" id="custLabelInp" type="text" placeholder="Gym, Daycare, Mum's place…" autocorrect="off" autocapitalize="words"><button class="cust-save-btn" id="confirmCust">Save</button></div>
+<!-- Current destination (hidden until a destination is selected) -->
+<div id="currentSection" class="section" style="display:none">
+  <div class="sec-hdr">Current Destination</div>
+  <div class="dest-card">
+    <span class="dest-icon">✅</span>
+    <div>
+      <div class="dest-name" id="destName"></div>
+      <div class="dest-addr" id="destAddr"></div>
+    </div>
+  </div>
+  <div class="dest-fav-row">
+    <button class="dest-fav-btn" id="saveHome">🏠 Save as Home</button>
+    <button class="dest-fav-btn" id="saveWork">💼 Save as Work</button>
   </div>
 </div>
 
-<div class="rec-card"><div class="sec-lbl">RECENT</div><div id="recList"></div></div>
-
-<div class="adv-toggle" id="advToggle"><span>⚙ Preferences</span><span class="adv-arr" id="advArr">›</span></div>
-<div class="adv-body" id="advBody">
-  <div class="adv-lbl">Units</div>
-  <select id="unitsSelect" class="pref-input"><option value="auto">Automatic</option><option value="metric">Metric</option><option value="imperial">Imperial</option></select>
-  <div class="adv-hint" id="unitsHint">Automatic uses your phone's locale. You can override it here.</div>
-  <div class="adv-lbl">Beta features</div>
-  <label class="beta-row"><input type="checkbox" id="enableProviderTesting"><span>Enable routing engine testing</span></label>
-  <div class="provider-area" id="providerArea"><div class="mode-bar" style="padding:0"><button class="mode-btn provider-btn" data-provider="mapbox">Mapbox</button><button class="mode-btn provider-btn" data-provider="stadia">Stadia</button></div><div class="adv-hint">For controlled route-quality testing. Mapbox remains the default.</div></div>
-  <div class="adv-lbl">Mapbox public token</div>
-  <input id="tokInput" class="pref-input tok-input" type="text" placeholder="pk.eyJ…" autocapitalize="none" autocorrect="off" spellcheck="false">
-  <div class="adv-hint">A default token may be supplied by the watch app. If you enter your own, use a public token beginning with pk. This direct-token field is for development only and should be removed once requests are proxied through a trusted backend.</div>
+<!-- Quick destinations -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Quick Destinations</div>
+  <div class="pick-item disabled" id="pickHome">
+    <span class="pick-icon">🏠</span>
+    <div>
+      <div class="pick-label">Home</div>
+      <div id="homeVal" class="pick-empty">Not set — search to add</div>
+    </div>
+    <span class="chev">›</span>
+  </div>
+  <div class="pick-item disabled" id="pickWork" style="border-top:1px solid #f2f2f7">
+    <span class="pick-icon">💼</span>
+    <div>
+      <div class="pick-label">Work</div>
+      <div id="workVal" class="pick-empty">Not set — search to add</div>
+    </div>
+    <span class="chev">›</span>
+  </div>
 </div>
+
+<!-- Recents -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Recent</div>
+  <div id="recentsList"></div>
+</div>
+
+<!-- Route profile -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Route Profile</div>
+  <div class="profile-row">
+    <button class="profile-btn" data-prof="cycling">🚲 Cycling</button>
+    <button class="profile-btn" data-prof="walking">🚶 Walking</button>
+    <button class="profile-btn" data-prof="driving">🚗 Driving</button>
+  </div>
+</div>
+
+<!-- ── Preferences ── v0.15b ──────────────────────────────────────── -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Preferences</div>
+  <!-- Turn alerts toggle -->
+  <label class="toggle-row" for="turnAlerts">
+    <span class="toggle-label">Turn alerts</span>
+    <input type="checkbox" id="turnAlerts" checked>
+    <span class="toggle-track"></span>
+  </label>
+</div>
+<p class="sec-hint">
+  Colour flash and vibration before each turn.
+  The close-range vibration always fires.
+</p>
+
+<!-- Advanced (collapsed by default) -->
+<div class="adv-toggle" id="advToggle">
+  <span>⚙ Advanced</span>
+  <span class="adv-arrow" id="advArrow">›</span>
+</div>
+<div class="adv-body" id="advBody">
+  <div class="adv-lbl">Mapbox public token</div>
+  <input id="tokenInput" class="token-input" type="text"
+         placeholder="pk.eyJ..."
+         autocapitalize="none" autocorrect="off" spellcheck="false">
+  <div class="adv-hint">
+    A default token is pre-configured — you don't need to touch this.
+    Only change it if you want to use your own Mapbox account token.
+    Always use a public token (starts with pk.), never a secret token.
+    Stored privately on your phone.
+  </div>
+</div>
+
 <div class="end-space"></div>
 
-<div class="save-bar"><button class="btn-cancel" id="cancelBtn">Cancel</button><button class="btn-save" id="saveBtn" disabled>Set on watch</button></div>
+<!-- Fixed bottom save bar -->
+<div class="save-bar">
+  <button class="btn-cancel" id="cancelBtn">Cancel</button>
+  <button class="btn-save" id="saveBtn" disabled>Set on watch</button>
+</div>
 
 <script>
-(function(){
+(function () {
 'use strict';
-var STORE_KEY='glancenav-config-v1',MAX_CUSTOM=2,MAX_RECENTS=8;
-var S={token:'',profile:'cycling',lastProfile:'cycling',unitsChoice:'auto',units:'metric',provider:'mapbox',providerTesting:false,active:null,favs:{home:null,work:null,custom:[]},recents:[],managingSlot:null,replacingSlot:null,previewOpen:true,previewXhr:null};
-var cachedCoords=null,cachedCoordsAt=0,COORDS_CACHE_MS=90000,sessionTok=uuid4(),debTimer=null,pendXhr=null;
-function qs(s){return document.querySelector(s)}function qsa(s){return document.querySelectorAll(s)}
-function uuid4(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)})}
-function esc(v){return String(v||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function getParam(name,def){var m=location.search.match(new RegExp('[?&]'+name+'=([^&]*)'));return m?decodeURIComponent(m[1].replace(/\+/g,' ')):(def||'')}
-function currentToken(){var t=qs('#tokInput');return(t?t.value.trim():'')||S.token}
-function localeDefaultUnits(){var locale=(navigator.language||'').toLowerCase();return locale==='en-us'||locale.indexOf('en-us-')===0?'imperial':'metric'}
-function resolveUnits(choice){return choice==='metric'||choice==='imperial'?choice:localeDefaultUnits()}
-function sameDest(a,b){if(!a||!b)return false;if(a.mapboxId&&b.mapboxId&&a.mapboxId===b.mapboxId)return true;return Math.abs(parseFloat(a.lat)-parseFloat(b.lat))<0.0002&&Math.abs(parseFloat(a.lon)-parseFloat(b.lon))<0.0002}
-function shortAddr(a){if(!a)return'';return String(a).split(',').slice(0,2).join(',').trim()}
-function profileLabel(p){return p==='walking'?'Walking':p==='driving'?'Driving':'Cycling'}
-function profileIcon(p){return p==='walking'?'🚶':p==='driving'?'🚗':'🚲'}
-function fmtDist(m){if(!isFinite(m))return'';if(S.units==='imperial'){var mi=m/1609.344;return mi<0.1?Math.round(m*3.28084)+' ft':mi.toFixed(1)+' mi'}return m<1000?Math.round(m)+' m':(m/1000).toFixed(1)+' km'}
-function fmtDur(s){if(!isFinite(s))return'';var m=Math.round(s/60);if(m<60)return m+' min';var h=Math.floor(m/60),r=m%60;return h+' h'+(r?' '+r+' min':'')}
-function getDestForSlot(slot){if(slot==='home')return S.favs.home;if(slot==='work')return S.favs.work;for(var i=0;i<S.favs.custom.length;i++)if(S.favs.custom[i].id===slot)return S.favs.custom[i];return null}
-function getLabelForSlot(slot){if(slot==='home')return'Home';if(slot==='work')return'Work';for(var i=0;i<S.favs.custom.length;i++)if(S.favs.custom[i].id===slot)return S.favs.custom[i].label;return'Destination'}
-function loadStore(){try{return JSON.parse(localStorage.getItem(STORE_KEY))||{}}catch(e){return{}}}
-function saveStore(){try{localStorage.setItem(STORE_KEY,JSON.stringify({favs:S.favs,recents:S.recents,lastProfile:S.lastProfile,unitsChoice:S.unitsChoice,provider:S.provider,providerTesting:S.providerTesting}))}catch(e){}}
-function normaliseDest(d){if(!d)return d;d.profile=d.profile||null;return d}
-function init(){var st=loadStore();S.favs=st.favs||S.favs;if(!S.favs.custom)S.favs.custom=[];S.favs.home=normaliseDest(S.favs.home);S.favs.work=normaliseDest(S.favs.work);for(var i=0;i<S.favs.custom.length;i++)normaliseDest(S.favs.custom[i]);S.recents=st.recents||[];for(i=0;i<S.recents.length;i++)normaliseDest(S.recents[i]);S.lastProfile=st.lastProfile||S.lastProfile;S.unitsChoice=st.unitsChoice||'auto';S.provider=st.provider||'mapbox';S.providerTesting=!!st.providerTesting;
-  var raw=getParam('s','');if(raw){try{var inc=JSON.parse(raw);if(inc.token)S.token=inc.token;if(inc.profile){S.profile=inc.profile;S.lastProfile=inc.profile}if(inc.units){S.unitsChoice=inc.units}if(inc.provider)S.provider=inc.provider;if(inc.dest&&inc.dest.lat)S.active={name:inc.dest.name||'',address:inc.dest.address||'',lat:inc.dest.lat,lon:inc.dest.lon,profile:inc.dest.profile||inc.profile||null}}catch(e){}}
-  S.units=resolveUnits(S.unitsChoice);qs('#tokInput').value=S.token;qs('#unitsSelect').value=S.unitsChoice;qs('#enableProviderTesting').checked=S.providerTesting;renderAll();bindAll();getLocation(function(){});if(S.active&&S.active.lat)selectDest(S.active,false)}
-function renderAll(){renderCards();renderMode();renderProvider();renderPreferences();renderRecents();updateSaveBtn()}
-function renderCards(){var strip=qs('#cardStrip'),html='';html+=makeCardHtml('home','🏠','Home',S.favs.home);html+=makeCardHtml('work','💼','Work',S.favs.work);for(var i=0;i<S.favs.custom.length;i++){var c=S.favs.custom[i];html+=makeCardHtml(c.id,'📍',c.label,c)}if(S.favs.custom.length<MAX_CUSTOM)html+='<div class="dest-card add-card" id="addCard"><span style="font-size:28px">+</span><div class="card-lbl" style="color:#8e8e93">Add</div></div>';strip.innerHTML=html;
-  var cards=qsa('.dest-card[data-slot]');for(i=0;i<cards.length;i++)cards[i].addEventListener('click',onCardClick);var more=qsa('.card-more[data-slot]');for(i=0;i<more.length;i++)more[i].addEventListener('click',onCardMore);var add=qs('#addCard');if(add)add.addEventListener('click',onAddCard)}
-function makeCardHtml(slot,icon,label,d){var active=!!(S.active&&d&&sameDest(S.active,d)),addr=d?shortAddr(d.address||d.name||''):'',prof=d&&d.profile?'<div class="card-profile">'+profileIcon(d.profile)+' '+esc(profileLabel(d.profile))+'</div>':'';return'<div class="dest-card'+(active?' active':'')+'" data-slot="'+esc(slot)+'"><span class="card-more" data-slot="'+esc(slot)+'">⋯</span><span class="card-ic">'+icon+'</span><div class="card-lbl">'+esc(label)+'</div>'+(addr?'<div class="card-addr">'+esc(addr)+'</div>':'')+prof+(active?'<div class="card-dot"></div>':'')+'</div>'}
-function onCardClick(e){if(e.target.classList.contains('card-more'))return;var slot=this.getAttribute('data-slot'),d=getDestForSlot(slot);if(!d){beginReplacing(slot);return}selectDest(d,true)}
-function onCardMore(e){e.stopPropagation();toggleActBar(this.getAttribute('data-slot'))}
-function onAddCard(){S.replacingSlot={type:'newcustom'};showReplBanner('⭐ Search for a new place to save');focusSearch();closeActBar()}
-function toggleActBar(slot){var b=qs('#cardActBar');if(b.classList.contains('open')&&S.managingSlot===slot){closeActBar();return}S.managingSlot=slot;qs('#cardActLbl').textContent='Managing: '+getLabelForSlot(slot);qs('#removeBtn').style.display=(slot==='home'||slot==='work')?'none':'';b.classList.add('open')}
-function closeActBar(){qs('#cardActBar').classList.remove('open');S.managingSlot=null}
-function beginReplacing(slot){S.replacingSlot=slot;showReplBanner('🔄 Changing '+getLabelForSlot(slot)+' — search for new location');focusSearch();closeActBar()}
-function showReplBanner(msg){qs('#replBannerText').textContent=msg;qs('#replBanner').className='repl-banner show'}
-function clearReplacing(){S.replacingSlot=null;qs('#replBanner').className='repl-banner'}
-function focusSearch(){var s=qs('#search');s.value='';clearSugs();s.focus();s.scrollIntoView({behavior:'smooth',block:'nearest'})}
-function chooseProfileFor(d){return(d&&d.profile)||S.lastProfile||'cycling'}
-function selectDest(dest,startPreview){S.profile=chooseProfileFor(dest);S.lastProfile=S.profile;var slot=S.replacingSlot;if(slot){clearReplacing();if(slot==='home')S.favs.home=toFav(dest);else if(slot==='work')S.favs.work=toFav(dest);else if(slot&&slot.type==='newcustom'){S.active=dest;addToRecents(dest);renderCards();showSelSection(dest,startPreview!==false);openCustPanel();updateSaveBtn();return}else if(slot&&slot.id){for(var i=0;i<S.favs.custom.length;i++)if(S.favs.custom[i].id===slot.id){var u=toFav(dest);u.id=slot.id;u.label=slot.label;S.favs.custom[i]=u;break}}saveStore()}
-  S.active=dest;addToRecents(dest);renderMode();renderCards();showSelSection(dest,startPreview!==false);updateSaveBtn();saveStore()}
-function toFav(d){return{name:d.name,address:d.address||'',lat:d.lat,lon:d.lon,mapboxId:d.mapboxId||null,profile:S.profile,savedAt:Date.now()}}
-function updateActiveProfile(){if(!S.active)return;S.active.profile=S.profile;function upd(d){if(d&&sameDest(d,S.active))d.profile=S.profile}upd(S.favs.home);upd(S.favs.work);for(var i=0;i<S.favs.custom.length;i++)upd(S.favs.custom[i]);for(i=0;i<S.recents.length;i++)upd(S.recents[i]);saveStore();renderCards();renderRecents()}
-function addToRecents(dest){var copy={name:dest.name,address:dest.address||'',lat:dest.lat,lon:dest.lon,mapboxId:dest.mapboxId||null,profile:dest.profile||S.profile,savedAt:Date.now()},next=[copy],old=S.recents||[];for(var i=0;i<old.length&&next.length<MAX_RECENTS;i++)if(!sameDest(copy,old[i]))next.push(old[i]);S.recents=next;saveStore();renderRecents()}
-function showSelSection(dest,preview){qs('#selSection').style.display='';qs('#selName').textContent=dest.name||'Selected destination';renderMode();var pb=qs('#prevBody');pb.style.display=S.previewOpen?'':'none';qs('#prevChev').className='prev-chev'+(S.previewOpen?' open':'');updateSaveChips();closeCustPanel();if(preview){qs('#selMeta').textContent='Getting route…';qs('#selMeta').className='sel-meta muted';setMapLoading(true);triggerPreview(dest)}else{qs('#selMeta').textContent=profileLabel(S.profile);qs('#selMeta').className='sel-meta'}}
-function togglePreview(){S.previewOpen=!S.previewOpen;qs('#prevBody').style.display=S.previewOpen?'':'none';qs('#prevChev').className='prev-chev'+(S.previewOpen?' open':'')}
-function setMapLoading(show){qs('#mapLoading').className=show?'map-loading':'map-loading hidden';qs('#mapImg').className=show?'map-img hidden':'map-img'}function setMapNote(m){qs('#mapNote').textContent=m||''}
-function renderMode(){var b=qsa('[data-prof]');for(var i=0;i<b.length;i++)b[i].className='mode-btn'+(b[i].getAttribute('data-prof')===S.profile?' on':'')}
-function renderProvider(){var b=qsa('[data-provider]');for(var i=0;i<b.length;i++)b[i].className='mode-btn provider-btn'+(b[i].getAttribute('data-provider')===S.provider?' on':'')}
-function renderPreferences(){S.units=resolveUnits(S.unitsChoice);qs('#unitsHint').textContent=S.unitsChoice==='auto'?'Automatic currently resolves to '+(S.units==='imperial'?'Imperial':'Metric')+' from your phone locale.':'Using '+(S.units==='imperial'?'Imperial':'Metric')+'.';qs('#providerArea').className='provider-area'+(S.providerTesting?' show':'')}
-function refreshPreview(){if(S.active&&S.active.lat){qs('#selMeta').textContent='Updating…';qs('#selMeta').className='sel-meta muted';setMapLoading(true);triggerPreview(S.active)}}
-function getLocation(cb){if(cachedCoords&&Date.now()-cachedCoordsAt<COORDS_CACHE_MS){cb(cachedCoords);return}if(!navigator.geolocation){cb(null);return}navigator.geolocation.getCurrentPosition(function(p){cachedCoords=p.coords;cachedCoordsAt=Date.now();cb(cachedCoords)},function(){cb(null)},{enableHighAccuracy:false,timeout:5000,maximumAge:60000})}
-function proximityParam(){return cachedCoords?'&proximity='+encodeURIComponent(cachedCoords.longitude.toFixed(4)+','+cachedCoords.latitude.toFixed(4)):''}
-function triggerPreview(dest){var tok=currentToken();if(!tok||tok.indexOf('pk.')!==0){showPinOnly(tok,dest,'Add a Mapbox token in Preferences');return}if(S.previewXhr)try{S.previewXhr.abort()}catch(e){}getLocation(function(c){c?fetchPreview(dest,c,tok):showPinOnly(tok,dest,'Your location is unavailable')})}
-function fetchPreview(dest,c,tok){var origin=c.longitude.toFixed(6)+','+c.latitude.toFixed(6),end=parseFloat(dest.lon).toFixed(6)+','+parseFloat(dest.lat).toFixed(6),url='https://api.mapbox.com/directions/v5/mapbox/'+S.profile+'/'+origin+';'+end+'?overview=simplified&geometries=polyline&access_token='+encodeURIComponent(tok),x=new XMLHttpRequest();S.previewXhr=x;x.open('GET',url);x.timeout=10000;x.onload=function(){S.previewXhr=null;if(x.status<200||x.status>=300){showPinOnly(tok,dest,'Route unavailable');return}try{var d=JSON.parse(x.responseText),r=d.routes&&d.routes[0];if(!r||!r.geometry){showPinOnly(tok,dest,'No route found');return}var parts=[profileLabel(S.profile)];if(isFinite(r.distance))parts.push(fmtDist(r.distance));if(isFinite(r.duration))parts.push('about '+fmtDur(r.duration));qs('#selMeta').textContent=parts.join(' · ');qs('#selMeta').className='sel-meta';loadMapImg(buildMapUrl(tok,dest.lon,dest.lat,r.geometry,c.longitude,c.latitude),'')}catch(e){showPinOnly(tok,dest,'Could not read route')}};x.onerror=function(){showPinOnly(tok,dest,'Network error')};x.ontimeout=function(){showPinOnly(tok,dest,'Request timed out')};x.send()}
-function showPinOnly(tok,dest,note){qs('#selMeta').textContent=note||'';qs('#selMeta').className='sel-meta err';if(!tok||!dest){setMapLoading(false);return}var lo=parseFloat(dest.lon).toFixed(5),la=parseFloat(dest.lat).toFixed(5);loadMapImg('https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-l+007AFF('+lo+','+la+')/'+lo+','+la+',13/680x400@2x?padding=70,20,70,20&access_token='+encodeURIComponent(tok),note)}
-function buildMapUrl(tok,dLon,dLat,poly,oLon,oLat){var lo=parseFloat(dLon).toFixed(5),la=parseFloat(dLat).toFixed(5),parts=['path-4+007AFF-0.75('+encodeURIComponent(poly)+')','pin-s+22c55e('+oLon.toFixed(5)+','+oLat.toFixed(5)+')','pin-l+dc143c('+lo+','+la+')'],url='https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/'+parts.join(',')+'/auto/680x420@2x?padding=50,20,70,20&access_token='+encodeURIComponent(tok);return url.length<=8000?url:'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+22c55e('+oLon.toFixed(5)+','+oLat.toFixed(5)+'),pin-l+dc143c('+lo+','+la+')/auto/680x420@2x?padding=60,20,60,20&access_token='+encodeURIComponent(tok)}
-function loadMapImg(src,note){var i=qs('#mapImg');i.onload=function(){setMapLoading(false);i.className='map-img';setMapNote(note)};i.onerror=function(){setMapLoading(false);i.className='map-img hidden';setMapNote('Map preview unavailable')};i.src=src}
-function updateSaveChips(){var h=qs('#saveHomeChip'),w=qs('#saveWorkChip'),ih=S.active&&S.favs.home&&sameDest(S.active,S.favs.home),iw=S.active&&S.favs.work&&sameDest(S.active,S.favs.work);h.textContent=ih?'🏠 Saved as Home ✓':'🏠 Set as Home';h.className='save-chip'+(ih?' done':'');w.textContent=iw?'💼 Saved as Work ✓':'💼 Set as Work';w.className='save-chip'+(iw?' done':'')}
-function openCustPanel(){qs('#custPanel').classList.add('open');setTimeout(function(){qs('#custLabelInp').focus()},100)}function closeCustPanel(){qs('#custPanel').classList.remove('open');qs('#custLabelInp').value=''}
-function renderRecents(){var c=qs('#recList'),r=S.recents||[];if(!r.length){c.innerHTML='<div class="empty-msg">No recent destinations yet.</div>';return}var h='';for(var i=0;i<Math.min(r.length,5);i++){var d=r[i];h+='<div class="rec-item" data-rec="'+i+'"><span class="rec-ic">🕐</span><div class="rec-text"><div class="rec-name">'+esc(d.name||'Unnamed')+'</div><div class="rec-addr">'+esc(shortAddr(d.address||''))+'</div><div class="rec-profile">'+profileIcon(d.profile||S.lastProfile)+' '+esc(profileLabel(d.profile||S.lastProfile))+'</div></div><span class="rec-chev">›</span></div>'}c.innerHTML=h;var it=qsa('[data-rec]');for(i=0;i<it.length;i++)it[i].addEventListener('click',function(){selectDest(S.recents[parseInt(this.getAttribute('data-rec'),10)],true)})}
-function doSuggest(q){var tok=currentToken();if(!tok||tok.indexOf('pk.')!==0){setStatus('Open Preferences and add a Mapbox token first.',true);return}if(!q||q.trim().length<2){clearSugs();setStatus('');return}if(pendXhr)pendXhr.abort();var url='https://api.mapbox.com/search/searchbox/v1/suggest?q='+encodeURIComponent(q.trim())+'&language=en'+proximityParam()+'&limit=5&session_token='+encodeURIComponent(sessionTok)+'&access_token='+encodeURIComponent(tok),x=new XMLHttpRequest();pendXhr=x;x.open('GET',url);x.timeout=8000;x.onload=function(){if(x!==pendXhr)return;pendXhr=null;if(x.status<200||x.status>=300){setStatus('Search error '+x.status+'.',true);return}try{renderSugs(JSON.parse(x.responseText).suggestions||[])}catch(e){setStatus('Could not read results.',true)}};x.onerror=function(){setStatus('Network error.',true)};x.ontimeout=function(){setStatus('Search timed out.',true)};x.send()}
-function doRetrieve(id,name,addr){var tok=currentToken();setStatus('Getting details…');clearSugs();var x=new XMLHttpRequest(),url='https://api.mapbox.com/search/searchbox/v1/retrieve/'+encodeURIComponent(id)+'?session_token='+encodeURIComponent(sessionTok)+'&access_token='+encodeURIComponent(tok);x.open('GET',url);x.timeout=8000;x.onload=function(){if(x.status<200||x.status>=300){setStatus('Error '+x.status+'.',true);return}try{var data=JSON.parse(x.responseText),f=data.features&&data.features[0];if(!f||!f.geometry||!f.geometry.coordinates){setStatus('No coordinates found.',true);return}var c=f.geometry.coordinates,p=f.properties||{},d={name:p.name||name||'Destination',address:p.full_address||p.place_formatted||p.address||addr||'',lon:String(c[0]),lat:String(c[1]),mapboxId:id,profile:S.lastProfile,savedAt:Date.now()};sessionTok=uuid4();setStatus('');qs('#search').value='';selectDest(d,true)}catch(e){setStatus('Could not read details.',true)}};x.onerror=function(){setStatus('Network error.',true)};x.ontimeout=function(){setStatus('Request timed out.',true)};x.send()}
-var FT_ICON={poi:'📍',address:'🏠',place:'🏙️',street:'🛣️',neighborhood:'🏘️',locality:'🏙️'};
-function renderSugs(s){var c=qs('#sugs');if(!s.length){c.innerHTML='';setStatus('No results found.');return}var h='';for(var i=0;i<s.length;i++){var a=s[i],addr=a.full_address||a.place_formatted||a.address||'';h+='<div class="sug" data-id="'+esc(a.mapbox_id||'')+'" data-name="'+esc(a.name||'')+'" data-addr="'+esc(addr)+'"><span class="sug-ic">'+(FT_ICON[a.feature_type]||'📍')+'</span><div><div class="sug-name">'+esc(a.name||'Unnamed')+'</div><div class="sug-addr">'+esc(addr)+'</div></div></div>'}c.innerHTML=h;var it=qsa('.sug');for(i=0;i<it.length;i++)it[i].addEventListener('click',function(){doRetrieve(this.getAttribute('data-id'),this.getAttribute('data-name'),this.getAttribute('data-addr'))})}
-function clearSugs(){qs('#sugs').innerHTML=''}function setStatus(m,e){var x=qs('#srchStatus');x.textContent=m||'';x.className='srch-status'+(e?' err':'')}
-function removeSlot(slot){if(slot==='home')S.favs.home=null;else if(slot==='work')S.favs.work=null;else S.favs.custom=S.favs.custom.filter(function(c){return c.id!==slot});saveStore();renderCards();updateSaveBtn()}
-function updateSaveBtn(){qs('#saveBtn').disabled=!(S.active&&S.active.lat)}
-// SECURITY: validate return_to to prevent open redirect + data exfiltration.
-// Only pebblejs: scheme is a valid destination. Any other value is discarded.
-function safeReturnTo(){var raw=getParam('return_to','pebblejs://close#');try{var u=new URL(raw);if(u.protocol==='pebblejs:')return raw;}catch(e){}return 'pebblejs://close#';}
-function doSave(){if(!S.active||!S.active.lat){alert('Choose a destination first.');return}var tok=currentToken();if(!tok||tok.indexOf('pk.')!==0){qs('#advBody').classList.add('open');alert('A Mapbox public token is required. Open Preferences to add one.');return}updateActiveProfile();var result={mapboxToken:tok,profile:S.profile,units:S.units,unitsChoice:S.unitsChoice,provider:S.providerTesting?S.provider:'mapbox',destName:S.active.name||'',destLat:S.active.lat,destLon:S.active.lon,destProfile:S.profile,favHome:S.favs.home?{name:S.favs.home.name||'Home',lat:S.favs.home.lat,lon:S.favs.home.lon,profile:S.favs.home.profile||S.profile}:null,favWork:S.favs.work?{name:S.favs.work.name||'Work',lat:S.favs.work.lat,lon:S.favs.work.lon,profile:S.favs.work.profile||S.profile}:null,favCustom:S.favs.custom.map(function(c){return{id:c.id,label:c.label,name:c.name,lat:c.lat,lon:c.lon,profile:c.profile||S.profile}})};document.location=safeReturnTo()+encodeURIComponent(JSON.stringify(result))}
-function doCancel(){document.location=safeReturnTo()}
-function bindAll(){qs('#search').addEventListener('input',function(){clearTimeout(debTimer);var q=this.value;if(!q.trim()){clearSugs();setStatus('');return}debTimer=setTimeout(function(){doSuggest(q)},350)});qs('#replCancelBtn').addEventListener('click',function(){clearReplacing();clearSugs();setStatus('')});var m=qsa('[data-prof]');for(var i=0;i<m.length;i++)m[i].addEventListener('click',function(){S.profile=this.getAttribute('data-prof');S.lastProfile=S.profile;updateActiveProfile();renderMode();refreshPreview()});qs('#selHeader').addEventListener('click',togglePreview);
-  qs('#saveHomeChip').addEventListener('click',function(){if(!S.active)return;S.favs.home=toFav(S.active);saveStore();renderCards();updateSaveChips()});qs('#saveWorkChip').addEventListener('click',function(){if(!S.active)return;S.favs.work=toFav(S.active);saveStore();renderCards();updateSaveChips()});qs('#saveCustomChip').addEventListener('click',function(){qs('#custPanel').classList.toggle('open');if(qs('#custPanel').classList.contains('open'))qs('#custLabelInp').focus()});qs('#confirmCust').addEventListener('click',function(){var l=qs('#custLabelInp').value.trim();if(!l){qs('#custLabelInp').focus();return}if(S.favs.custom.length>=MAX_CUSTOM){alert('Maximum '+MAX_CUSTOM+' custom destinations. Remove one first.');return}var f=toFav(S.active);f.id='c-'+uuid4().substring(0,8);f.label=l;S.favs.custom.push(f);saveStore();renderCards();closeCustPanel()});
-  qs('#replaceBtn').addEventListener('click',function(){var s=S.managingSlot;if(!s)return;if(s==='home'||s==='work')beginReplacing(s);else{var f=getDestForSlot(s);S.replacingSlot=f?{id:s,label:f.label}:s;showReplBanner('🔄 Replacing '+getLabelForSlot(s)+' — search for new location');focusSearch();closeActBar()}});qs('#removeBtn').addEventListener('click',function(){if(S.managingSlot){removeSlot(S.managingSlot);closeActBar()}});qs('#cancelActBtn').addEventListener('click',closeActBar);
-  qs('#advToggle').addEventListener('click',function(){var o=qs('#advBody').classList.toggle('open');qs('#advArr').textContent=o?'‹':'›'});qs('#unitsSelect').addEventListener('change',function(){S.unitsChoice=this.value;renderPreferences();saveStore();refreshPreview()});qs('#enableProviderTesting').addEventListener('change',function(){S.providerTesting=this.checked;renderPreferences();saveStore()});var p=qsa('[data-provider]');for(i=0;i<p.length;i++)p[i].addEventListener('click',function(){S.provider=this.getAttribute('data-provider');renderProvider();saveStore()});qs('#saveBtn').addEventListener('click',doSave);qs('#cancelBtn').addEventListener('click',doCancel)}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+var STORE_KEY = 'glancenav-config-v1';
+var PROXIMITY = '174.7633,-36.8485';
+
+var S = {
+  token:      '',
+  profile:    'cycling',
+  active:     null,
+  favs:       { home: null, work: null },
+  recents:    [],
+  turnAlerts: true   // v0.15b: default ON
+};
+var sessionTok = uuid4();
+var debTimer   = null;
+var pendXhr    = null;
+
+function uuid4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+function qs(s)  { return document.querySelector(s); }
+function qsa(s) { return document.querySelectorAll(s); }
+function esc(v) {
+  return String(v || '').replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function getParam(name, fallback) {
+  var m = location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
+  return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : (fallback || '');
+}
+
+function loadStore() {
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { favs: { home: null, work: null }, recents: [], turnAlerts: true };
+}
+function saveStore() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      favs: S.favs, recents: S.recents, turnAlerts: S.turnAlerts
+    }));
+  } catch (e) {}
+}
+
+function init() {
+  var stored = loadStore();
+  S.favs    = stored.favs    || { home: null, work: null };
+  S.recents = stored.recents || [];
+  // v0.15b: restore toggle from localStorage (default ON)
+  S.turnAlerts = stored.turnAlerts !== false;
+
+  var rawSettings = getParam('s', '');
+  if (rawSettings) {
+    try {
+      var inc = JSON.parse(rawSettings);
+      if (inc.token)   S.token   = inc.token;
+      if (inc.profile) S.profile = inc.profile;
+      if (inc.dest && inc.dest.lat) {
+        S.active = {
+          name:    inc.dest.name    || '',
+          address: inc.dest.address || '',
+          lat:     inc.dest.lat,
+          lon:     inc.dest.lon
+        };
+      }
+      // v0.15b: turnAlerts from index.js handoff overrides localStorage
+      if (typeof inc.turnAlerts !== 'undefined') {
+        S.turnAlerts = inc.turnAlerts !== false;
+      }
+    } catch (e) {}
+  }
+
+  var ti = qs('#tokenInput');
+  if (ti) ti.value = S.token;
+
+  // v0.15b: set toggle state
+  var ta = qs('#turnAlerts');
+  if (ta) ta.checked = S.turnAlerts;
+
+  renderAll();
+  bindAll();
+}
+
+function renderAll() {
+  renderProfile();
+  renderCurrent();
+  renderFavs();
+  renderRecents();
+  updateSaveBtn();
+}
+function renderProfile() {
+  var btns = qsa('[data-prof]');
+  for (var i = 0; i < btns.length; i++) {
+    var b = btns[i];
+    b.className = 'profile-btn' + (b.getAttribute('data-prof') === S.profile ? ' on' : '');
+  }
+}
+function renderCurrent() {
+  var sec = qs('#currentSection');
+  if (!sec) return;
+  if (!S.active || !S.active.lat) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  var n = qs('#destName'), a = qs('#destAddr');
+  if (n) n.textContent = S.active.name    || 'Selected destination';
+  if (a) a.textContent = S.active.address || '';
+}
+function renderFavs() {
+  setFavItem('home', 'homeVal', 'pickHome');
+  setFavItem('work', 'workVal', 'pickWork');
+}
+function setFavItem(key, valId, rowId) {
+  var el = qs('#' + valId), row = qs('#' + rowId);
+  var d = S.favs[key];
+  if (el) {
+    if (d && d.name) {
+      el.textContent = d.name;
+      el.className = 'pick-value';
+    } else {
+      el.textContent = 'Not set — search to add';
+      el.className = 'pick-empty';
+    }
+  }
+  if (row) row.className = 'pick-item' + (d ? '' : ' disabled');
+}
+function renderRecents() {
+  var c = qs('#recentsList');
+  if (!c) return;
+  var recs = S.recents;
+  if (!recs || !recs.length) {
+    c.innerHTML = '<div class="empty-msg">No recent destinations yet.</div>';
+    return;
+  }
+  var html = '', max = Math.min(recs.length, 5);
+  for (var i = 0; i < max; i++) {
+    var d = recs[i];
+    html += '<div class="recent-item" data-rec="' + i + '">' +
+      '<span class="rec-icon">🕐</span>' +
+      '<div>' +
+        '<div class="rec-name">' + esc(d.name    || 'Unnamed') + '</div>' +
+        '<div class="rec-addr">' + esc(d.address || '') + '</div>' +
+      '</div>' +
+      '<span class="chev">›</span>' +
+      '</div>';
+  }
+  c.innerHTML = html;
+  var items = qsa('[data-rec]');
+  for (var j = 0; j < items.length; j++) {
+    items[j].addEventListener('click', function () {
+      var d = S.recents[parseInt(this.getAttribute('data-rec'), 10)];
+      if (d) selectDest(d, false);
+    });
+  }
+}
+function updateSaveBtn() {
+  var btn = qs('#saveBtn');
+  if (btn) btn.disabled = !(S.active && S.active.lat);
+}
+
+/* ── Mapbox Search Box: suggest ──────────────────────────────────── */
+function doSuggest(q) {
+  var tok = currentToken();
+  if (!tok || tok.indexOf('pk.') !== 0) {
+    setStatus('Open ⚙ Advanced and add your Mapbox token first.', true);
+    return;
+  }
+  if (!q || q.trim().length < 2) { clearSugs(); setStatus(''); return; }
+  if (pendXhr) { pendXhr.abort(); pendXhr = null; }
+  setStatus('');
+  var url = 'https://api.mapbox.com/search/searchbox/v1/suggest' +
+    '?q='             + encodeURIComponent(q.trim()) +
+    '&language=en' +
+    '&country=NZ' +
+    '&proximity='     + encodeURIComponent(PROXIMITY) +
+    '&limit=5' +
+    '&session_token=' + encodeURIComponent(sessionTok) +
+    '&access_token='  + encodeURIComponent(tok);
+  var xhr = new XMLHttpRequest();
+  pendXhr = xhr;
+  xhr.open('GET', url);
+  xhr.timeout = 8000;
+  xhr.onload = function () {
+    if (xhr !== pendXhr) return;
+    pendXhr = null;
+    if (xhr.status < 200 || xhr.status >= 300) {
+      setStatus('Search error ' + xhr.status + '.', true); return;
+    }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      renderSugs(data.suggestions || []);
+    } catch (e) { setStatus('Could not read results.', true); }
+  };
+  xhr.onerror   = function () { if (xhr !== pendXhr) return; pendXhr = null; setStatus('Network error.', true); };
+  xhr.ontimeout = function () { if (xhr !== pendXhr) return; pendXhr = null; setStatus('Search timed out.', true); };
+  xhr.send();
+}
+
+/* ── Mapbox Search Box: retrieve ──────────────────────────────────── */
+function doRetrieve(mapboxId, suggName, suggAddr) {
+  var tok = currentToken();
+  setStatus('Getting details\u2026');
+  clearSugs();
+  var url = 'https://api.mapbox.com/search/searchbox/v1/retrieve/' +
+    encodeURIComponent(mapboxId) +
+    '?session_token=' + encodeURIComponent(sessionTok) +
+    '&access_token='  + encodeURIComponent(tok);
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url);
+  xhr.timeout = 8000;
+  xhr.onload = function () {
+    if (xhr.status < 200 || xhr.status >= 300) {
+      setStatus('Error ' + xhr.status + '.', true); return;
+    }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      var f = data.features && data.features[0];
+      if (!f || !f.geometry || !f.geometry.coordinates) {
+        setStatus('No coordinates found for this place.', true); return;
+      }
+      var c = f.geometry.coordinates, p = f.properties || {};
+      var dest = {
+        name:     p.name        || suggName || 'Destination',
+        address:  p.full_address || p.place_formatted || p.address || suggAddr || '',
+        lat:      String(c[1]),
+        lon:      String(c[0]),
+        mapboxId: mapboxId,
+        savedAt:  Date.now()
+      };
+      selectDest(dest, true);
+      sessionTok = uuid4();
+      setStatus('');
+      var si = qs('#search');
+      if (si) si.value = '';
+    } catch (e) { setStatus('Could not read destination details.', true); }
+  };
+  xhr.onerror   = function () { setStatus('Network error.', true); };
+  xhr.ontimeout = function () { setStatus('Request timed out.', true); };
+  xhr.send();
+}
+
+var FT_ICON = { poi:'📍', address:'🏠', place:'🏙️', street:'🛣️', neighborhood:'🏘️', locality:'🏙️' };
+function renderSugs(sugs) {
+  var c = qs('#suggestions');
+  if (!c) return;
+  if (!sugs.length) { c.innerHTML = ''; setStatus('No results found.'); return; }
+  setStatus('');
+  var html = '';
+  for (var i = 0; i < sugs.length; i++) {
+    var s = sugs[i];
+    var ic   = FT_ICON[s.feature_type] || '📍';
+    var addr = s.full_address || s.place_formatted || s.address || '';
+    html += '<div class="suggestion"' +
+      ' data-id="'   + esc(s.mapbox_id || '') + '"' +
+      ' data-name="' + esc(s.name      || '') + '"' +
+      ' data-addr="' + esc(addr)              + '">' +
+      '<span class="sug-icon">' + ic + '</span>' +
+      '<div>' +
+        '<div class="sug-name">' + esc(s.name || 'Unnamed') + '</div>' +
+        '<div class="sug-addr">' + esc(addr) + '</div>' +
+      '</div></div>';
+  }
+  c.innerHTML = html;
+  var items = qsa('.suggestion');
+  for (var j = 0; j < items.length; j++) {
+    items[j].addEventListener('click', function () {
+      doRetrieve(
+        this.getAttribute('data-id'),
+        this.getAttribute('data-name'),
+        this.getAttribute('data-addr')
+      );
+    });
+  }
+}
+function clearSugs() { var c = qs('#suggestions'); if (c) c.innerHTML = ''; }
+function setStatus(msg, isErr) {
+  var el = qs('#srchStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'srch-status' + (isErr ? ' err' : '');
+}
+function currentToken() {
+  var ti = qs('#tokenInput');
+  return (ti ? ti.value.trim() : '') || S.token;
+}
+
+/* ── Destination selection ──────────────────────────────────────── */
+function selectDest(dest, addRecent) {
+  S.active = dest;
+  if (addRecent) {
+    var next = [dest], old = S.recents || [];
+    for (var i = 0; i < old.length; i++) {
+      if (!sameDest(dest, old[i])) next.push(old[i]);
+      if (next.length >= 8) break;
+    }
+    S.recents = next;
+    saveStore();
+  }
+  renderAll();
+  var sec = qs('#currentSection');
+  if (sec) setTimeout(function () {
+    sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 80);
+}
+function sameDest(a, b) {
+  if (!a || !b) return false;
+  if (a.mapboxId && b.mapboxId) return a.mapboxId === b.mapboxId;
+  return a.lat === b.lat && a.lon === b.lon;
+}
+function saveFav(key) {
+  if (!S.active) { alert('Choose a destination first.'); return; }
+  S.favs[key] = S.active;
+  saveStore();
+  renderFavs();
+  var btn = qs(key === 'home' ? '#saveHome' : '#saveWork');
+  if (btn) {
+    var orig = btn.textContent;
+    btn.textContent = '\u2713 Saved!';
+    setTimeout(function () { btn.textContent = orig; }, 1600);
+  }
+}
+
+/* ── Save / Cancel ──────────────────────────────────────────────── */
+function doSave() {
+  if (!S.active || !S.active.lat) { alert('Choose a destination first.'); return; }
+  var tok = currentToken();
+  if (!tok || tok.indexOf('pk.') !== 0) {
+    var ab = qs('#advBody');
+    if (ab && !ab.classList.contains('open')) {
+      ab.classList.add('open');
+      var arr = qs('#advArrow');
+      if (arr) arr.textContent = '\u2039';
+    }
+    alert('A Mapbox public token (starts with pk.) is required.\nOpen \u2699 Advanced to add one.');
+    return;
+  }
+  // v0.15b: include turnAlerts in payload sent back to index.js
+  var result = {
+    mapboxToken: tok,
+    profile:     S.profile,
+    destName:    S.active.name    || '',
+    destLat:     S.active.lat,
+    destLon:     S.active.lon,
+    turnAlerts:  S.turnAlerts     // v0.15b: boolean → index.js saves + sends to watch
+  };
+  var rt = getParam('return_to', 'pebblejs://close#');
+  document.location = rt + encodeURIComponent(JSON.stringify(result));
+}
+function doCancel() {
+  document.location = getParam('return_to', 'pebblejs://close#');
+}
+
+/* ── Event binding ──────────────────────────────────────────────── */
+function bindAll() {
+  var si = qs('#search');
+  if (si) {
+    si.addEventListener('input', function () {
+      clearTimeout(debTimer);
+      var q = this.value;
+      if (!q.trim()) { clearSugs(); setStatus(''); return; }
+      debTimer = setTimeout(function () { doSuggest(q); }, 350);
+    });
+  }
+  var pbtns = qsa('[data-prof]');
+  for (var i = 0; i < pbtns.length; i++) {
+    pbtns[i].addEventListener('click', function () {
+      S.profile = this.getAttribute('data-prof');
+      renderProfile();
+    });
+  }
+  var ph = qs('#pickHome');
+  if (ph) ph.addEventListener('click', function () {
+    if (S.favs.home) selectDest(S.favs.home, false);
+  });
+  var pw = qs('#pickWork');
+  if (pw) pw.addEventListener('click', function () {
+    if (S.favs.work) selectDest(S.favs.work, false);
+  });
+  var sh = qs('#saveHome');
+  if (sh) sh.addEventListener('click', function () { saveFav('home'); });
+  var sw = qs('#saveWork');
+  if (sw) sw.addEventListener('click', function () { saveFav('work'); });
+
+  // v0.15b: turn alerts toggle
+  var ta = qs('#turnAlerts');
+  if (ta) {
+    ta.addEventListener('change', function () {
+      S.turnAlerts = this.checked;
+      saveStore(); // persist immediately so toggle survives page reload
+    });
+  }
+
+  var at = qs('#advToggle'), ab = qs('#advBody'), arr = qs('#advArrow');
+  if (at && ab) {
+    at.addEventListener('click', function () {
+      var open = ab.classList.toggle('open');
+      if (arr) arr.textContent = open ? '\u2039' : '\u203a';
+    });
+  }
+  var sb = qs('#saveBtn');
+  if (sb) sb.addEventListener('click', doSave);
+  var cb = qs('#cancelBtn');
+  if (cb) cb.addEventListener('click', doCancel);
+}
+
+/* ── Boot ───────────────────────────────────────────────────────── */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 }());
 </script>
 </body>
