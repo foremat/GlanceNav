@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,19 +7,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
 
-<!-- Mapbox GL JS v2.15 (WebGL 1.0, broadest WKWebView compatibility). -->
+<!-- Mapbox GL JS v2.15 — used for map tiles only when Stadia routing is active.
+     When Mapbox routing is active, also used for route geometry fetch.
+     WKWebView compatible (WebGL 1.0). -->
 <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet'>
 <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
 
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
-  font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;
-  -webkit-text-size-adjust:100%;padding-bottom:88px
-}
-
-/* ── Header ─────────────────────────────────────────────────────────── */
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;-webkit-text-size-adjust:100%;padding-bottom:88px}
 .hdr{background:#1c1c1e;color:#fff;padding:16px 16px 14px;display:flex;align-items:center;gap:12px}
 .hdr-icon{font-size:26px;line-height:1;flex-shrink:0}
 .hdr-title{font-size:19px;font-weight:700;letter-spacing:-.3px}
@@ -31,67 +26,31 @@ body{
 .nav-dot{width:10px;height:10px;border-radius:50%;background:#4cd964;flex-shrink:0;box-shadow:0 0 0 3px rgba(76,217,100,.3)}
 
 /* ── GL map wrapper ──────────────────────────────────────────────────── */
-/* The outer .gl-map-wrap constrains height and clips the GL canvas.
-   The inner .gl-inner is replaced on each initGLMap call (fresh DOM node
-   prevents WebGL context reuse issues when switching destinations).
-   
-   v0.16f: Heights reduced from 200/240 to 160/190px.
-   This leaves ~8px of visible page above/below the map when the user's
-   thumb is near the edge, making scroll vs interact distinction clearer.
-   The tap-to-interact overlay prevents accidental map interaction entirely
-   until the user deliberately taps the map. */
-.gl-map-wrap{
-  position:relative;
-  background:#dce6f0;
-  overflow:hidden
-}
-.gl-map-wrap .map-loading{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  font-size:13px;color:#8e8e93;pointer-events:none;z-index:1
-}
-.gl-inner{
-  position:absolute;top:0;left:0;width:100%;height:100%
-}
-.gl-inner .mapboxgl-map{
-  position:absolute!important;top:0;left:0;width:100%!important;height:100%!important
-}
+.gl-map-wrap{position:relative;background:#dce6f0;overflow:hidden}
+.gl-map-wrap .map-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#8e8e93;pointer-events:none;z-index:1}
+.gl-inner{position:absolute;top:0;left:0;width:100%;height:100%}
+.gl-inner .mapboxgl-map{position:absolute!important;top:0;left:0;width:100%!important;height:100%!important}
 
 /* ── Tap-to-interact overlay ─────────────────────────────────────────── */
-/* Sits on top of the GL canvas. Captures the first touch/click so that
-   scrolling past the map doesn't accidentally pan it. Removed on first tap.
-   
-   UX rationale: embedded interactive maps in scroll containers are a known
-   mobile UX problem — the WebGL touch handler intercepts scroll events the
-   moment a finger lands on the canvas. The overlay delegates the first touch
-   as an "activate" signal, after which the map behaves normally.
-   
-   Semi-transparent (not fully opaque) so the map content is visible
-   underneath, hinting at interactivity without hiding it. */
-.map-tap-overlay{
-  position:absolute;top:0;left:0;right:0;bottom:0;
-  z-index:10;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;
-  background:rgba(0,0,0,0.06);
-  -webkit-tap-highlight-color:transparent
-}
-.map-tap-label{
-  background:rgba(0,0,0,0.50);
-  color:#fff;
-  padding:7px 18px;
-  border-radius:20px;
-  font-size:13px;
-  font-weight:600;
-  letter-spacing:0.1px;
-  pointer-events:none;
-  -webkit-user-select:none;
-  user-select:none
-}
+.map-tap-overlay{position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(0,0,0,0.06);-webkit-tap-highlight-color:transparent}
+.map-tap-label{background:rgba(0,0,0,0.50);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;font-weight:600;letter-spacing:0.1px;pointer-events:none;-webkit-user-select:none;user-select:none}
 
 /* ── ETA card ────────────────────────────────────────────────────────── */
 .eta-card{padding:14px 16px 12px;border-top:1px solid #e5e5ea;background:#f8fff9}
 .eta-card-main{font-size:22px;font-weight:700;color:#111;line-height:1.2}
 .eta-card-sub{font-size:13px;color:#8e8e93;margin-top:4px}
+
+/* ── Provider badge on ETA card ──────────────────────────────────────── */
+/* Clearly shows which engine calculated the preview route.
+   Valhalla = purple (matches Stadia badge colour).
+   Mapbox = blue. Removed on public release if desired. */
+.provider-badge{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 7px;border-radius:10px;margin-left:8px;
+  vertical-align:middle;letter-spacing:0.2px
+}
+.provider-badge.stadia{background:#5b4bdb;color:#fff}
+.provider-badge.mapbox{background:#007AFF;color:#fff}
 
 /* ── Search ─────────────────────────────────────────────────────────── */
 .search-bar{background:#fff;padding:10px 12px;border-bottom:1px solid #e5e5ea;position:sticky;top:0;z-index:20}
@@ -116,7 +75,7 @@ body{
 .sec-hdr{padding:12px 16px 5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73}
 .sec-hint{font-size:13px;color:#6c6c70;padding:6px 16px 14px;line-height:1.4}
 
-/* ── Selected destination card ──────────────────────────────────────── */
+/* ── Selected destination ───────────────────────────────────────────── */
 #currentSection{border-left:4px solid #007AFF !important;background:#fff}
 .dest-card{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;background:#f0f7ff}
 .dest-indicator{width:10px;height:10px;border-radius:50%;background:#007AFF;margin-top:5px;flex-shrink:0}
@@ -126,7 +85,7 @@ body{
 .dest-fav-btn{flex:1;padding:10px 6px;font-size:14px;font-weight:600;border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;background:#fff;cursor:pointer}
 .dest-fav-btn:active{background:#eef5ff}
 
-/* ── Quick pick rows ────────────────────────────────────────────────── */
+/* ── Quick pick ─────────────────────────────────────────────────────── */
 .pick-item{padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:62px;-webkit-tap-highlight-color:rgba(0,0,0,.04)}
 .pick-item:last-child{border-bottom:none}
 .pick-item:active{background:#f5f5f5}
@@ -204,25 +163,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </header>
 
-<!-- Navigation in progress — shown when settings opened mid-journey -->
 <div id="navProgressSection" style="display:none">
   <div class="nav-banner">
     <div class="nav-dot"></div>
     <span>Navigation in progress</span>
     <span id="navProgressEta" style="margin-left:auto;font-weight:400;font-size:13px"></span>
   </div>
-  <!--
-    v0.16f: height 200→160px. Slightly smaller = more visible page content
-    above/below, clearer scroll affordance. Tap overlay prevents accidental
-    interaction while still showing the route line clearly at this size.
-  -->
   <div id="navProgressMapWrap" class="gl-map-wrap" style="height:160px">
     <span class="map-loading">Loading map…</span>
     <div id="nav-gl-inner" class="gl-inner"></div>
   </div>
 </div>
 
-<!-- Search -->
 <div class="search-bar">
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -234,7 +186,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 <div id="suggestions" class="suggestions"></div>
 <div id="srchStatus" class="srch-status"></div>
 
-<!-- Selected destination + route preview -->
 <div id="currentSection" class="section" style="display:none">
   <div class="sec-hdr">Selected Destination</div>
   <div class="dest-card">
@@ -249,16 +200,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <button class="dest-fav-btn" id="saveWork">💼 Save as Work</button>
   </div>
   <div id="routePreview" style="display:none">
-    <!-- ETA card: immediate "Calculating…" state, updated when API responds -->
     <div class="eta-card">
       <div class="eta-card-main" id="previewEtaMain">Calculating…</div>
       <div class="eta-card-sub" id="previewEtaSub"></div>
     </div>
-    <!--
-      v0.16f: height 240→190px. Slightly reduced for easier scroll-past.
-      Route line + both pins still clearly visible at this height for
-      typical Auckland commute distances (3–15km).
-    -->
     <div id="previewMapWrap" class="gl-map-wrap" style="height:190px">
       <span class="map-loading">Loading map…</span>
       <div id="preview-gl-inner" class="gl-inner"></div>
@@ -266,7 +211,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </div>
 
-<!-- Quick destinations -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Quick Destinations</div>
   <div class="pick-item disabled" id="pickHome">
@@ -281,13 +225,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </div>
 
-<!-- Recents -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Recent</div>
   <div id="recentsList"></div>
 </div>
 
-<!-- Route profile -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Route Profile</div>
   <div class="profile-row">
@@ -297,7 +239,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </div>
 
-<!-- Routing provider -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Routing Provider</div>
   <div class="profile-row">
@@ -307,7 +248,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 </div>
 <p class="sec-hint">Stadia uses Valhalla routing — better cycling path preference and roundabout detection for NZ. Search always uses Mapbox.</p>
 
-<!-- Stadia API key -->
 <div id="stadiaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Stadia API Key</div>
   <div style="padding:0 16px 16px">
@@ -321,7 +261,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </div>
 
-<!-- Valhalla sliders (testing) -->
 <div id="valhallaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Valhalla Cycling Options <span style="font-size:10px;color:#8e8e93;font-weight:400;text-transform:none;letter-spacing:0">(testing)</span></div>
   <div class="slider-row">
@@ -336,7 +275,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </div>
 
-<!-- Preferences -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Preferences</div>
   <label class="toggle-row" for="turnAlerts">
@@ -347,7 +285,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 </div>
 <p class="sec-hint">Colour flash and vibration before each turn. The close-range vibration always fires.</p>
 
-<!-- Advanced (collapsed) -->
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
   <span class="adv-arrow" id="advArrow">›</span>
@@ -356,7 +293,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   <div class="adv-lbl">Mapbox public token</div>
   <input id="tokenInput" class="token-input" type="text"
          placeholder="pk.eyJ..." autocapitalize="none" autocorrect="off" spellcheck="false">
-  <div class="adv-hint">Required for destination search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
+  <div class="adv-hint">Required for map tiles and search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
 </div>
 
 <div class="end-space"></div>
@@ -380,6 +317,8 @@ var S = {
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
 
+// Track GL instances and route XHRs per map slot ('nav' or 'preview').
+// Allows clean teardown when a new destination or provider is selected.
 var glInstances = {}, routeXhrs = {};
 var sessionTok = uuid4(), debTimer = null, pendXhr = null;
 
@@ -444,37 +383,157 @@ function init(){
   if(S.active&&S.active.lat){ renderCurrent(); showRoutePreview(S.active); }
 }
 
-// ── GL map: core initialiser ───────────────────────────────────────────
-// id: 'nav' or 'preview' — determines which wrapper + inner element to use.
-// Aborts any in-flight route XHR, destroys any existing GL instance, and
-// replaces the inner div with a fresh DOM node before initialising GL.
-// This prevents WebGL context reuse failures when switching destinations.
+// ── Polyline6 decoder ─────────────────────────────────────────────────
+// Valhalla encodes shape as precision 1e-6 (Google/Mapbox use 1e-5).
+// Returns [[lon, lat], ...] — GeoJSON coordinate order.
+function decodePolyline6(str) {
+  var coords = [], index = 0, lat = 0, lon = 0;
+  while (index < str.length) {
+    var b, shift = 0, result = 0;
+    do { b = str.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += (result & 1) !== 0 ? ~(result >> 1) : (result >> 1);
+    shift = 0; result = 0;
+    do { b = str.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lon += (result & 1) !== 0 ? ~(result >> 1) : (result >> 1);
+    coords.push([lon / 1e6, lat / 1e6]);
+  }
+  return coords;
+}
+
+// ── Route fetch: provider-aware dispatcher ─────────────────────────────
+// v0.16g: preview now queries the SAME routing engine the watch will use.
+// This ensures the preview map shows the exact route (including use_roads
+// and use_hills preferences) that will be navigated — not Mapbox's default.
 //
-// v0.16f: adds a tap-to-interact overlay after map init. The overlay:
-//   - Prevents accidental map panning while scrolling past the map
-//   - Is removed on first touchstart or click (activates map interaction)
-//   - Is also removed on the next initGLMap call (fresh map = fresh overlay)
-function initGLMap(id, tok, oLon, oLat, dLon, dLat, onETA) {
+// callback(coords, durationSecs, distanceMetres) — coords = [[lon,lat],...]
+// On failure: callback(null, null, null)
+//
+// id: 'nav'|'preview' — used to track and cancel the XHR when destination
+// or provider changes.
+function fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, callback) {
+  // Abort any in-flight request for this map slot
+  if (routeXhrs[id]) {
+    try { routeXhrs[id].abort(); } catch(e) {}
+    routeXhrs[id] = null;
+  }
+  if (S.provider === 'stadia' && S.stadiaToken && S.stadiaToken.length > 8) {
+    fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback);
+  } else {
+    fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback);
+  }
+}
+
+// Mapbox Directions — geometry only (no steps needed for preview)
+function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
+  var profileMap = { cycling: 'cycling', walking: 'walking', driving: 'driving' };
+  var profile = profileMap[S.profile] || 'cycling';
+  var url = 'https://api.mapbox.com/directions/v5/mapbox/' + profile
+    + '/' + oLon.toFixed(6) + ',' + oLat.toFixed(6)
+    + ';'  + dLon.toFixed(6) + ',' + dLat.toFixed(6)
+    + '?steps=false&overview=full&geometries=geojson&access_token='
+    + encodeURIComponent(tok);
+  var xhr = new XMLHttpRequest();
+  routeXhrs[id] = xhr;
+  xhr.open('GET', url);
+  xhr.timeout = 10000;
+  xhr.onload = function() {
+    if (routeXhrs[id] !== xhr) return;
+    routeXhrs[id] = null;
+    if (xhr.status !== 200) { callback(null, null, null); return; }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      var route = data.routes && data.routes[0];
+      if (!route) { callback(null, null, null); return; }
+      callback(route.geometry.coordinates, route.duration, route.distance);
+    } catch(e) { callback(null, null, null); }
+  };
+  xhr.onerror = xhr.ontimeout = function() {
+    if (routeXhrs[id] === xhr) routeXhrs[id] = null;
+    callback(null, null, null);
+  };
+  xhr.send();
+}
+
+// Stadia / Valhalla — identical costing to what the watch will use.
+// Authorization header keeps token out of URL and server logs.
+// Returns duration from trip.summary.time, distance from trip.summary.length * 1000.
+function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
+  var profileMap = { cycling: 'bicycle', walking: 'pedestrian', driving: 'auto' };
+  var costing = profileMap[S.profile] || 'bicycle';
+  var costingOptions = {};
+  if (costing === 'bicycle') {
+    costingOptions.bicycle = {
+      use_roads: S.valhallaUseRoads,
+      use_hills: S.valhallaUseHills
+    };
+  }
+  var body = JSON.stringify({
+    locations: [
+      { lon: parseFloat(oLon.toFixed(6)), lat: parseFloat(oLat.toFixed(6)), type: 'break' },
+      { lon: parseFloat(dLon.toFixed(6)), lat: parseFloat(dLat.toFixed(6)), type: 'break' }
+    ],
+    costing: costing,
+    costing_options: costingOptions,
+    directions_options: { units: 'kilometers' }
+    // No 'shape_format' param — default polyline6 encoding, decoded client-side
+  });
+  var xhr = new XMLHttpRequest();
+  routeXhrs[id] = xhr;
+  xhr.open('POST', 'https://api.stadiamaps.com/route/v1');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.setRequestHeader('Authorization', 'Stadia-Auth ' + S.stadiaToken);
+  xhr.timeout = 10000;
+  xhr.onload = function() {
+    if (routeXhrs[id] !== xhr) return;
+    routeXhrs[id] = null;
+    if (xhr.status !== 200) { callback(null, null, null); return; }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (!data.trip || !data.trip.legs || !data.trip.legs[0]) {
+        callback(null, null, null); return;
+      }
+      var leg     = data.trip.legs[0];
+      var summary = data.trip.summary || {};
+      // Decode polyline6 shape → [[lon,lat], ...] GeoJSON coords
+      var coords = typeof leg.shape === 'string'
+        ? decodePolyline6(leg.shape)
+        : (Array.isArray(leg.shape) ? leg.shape : []);
+      // duration = total seconds, distance = total km → convert to metres
+      var duration = summary.time   || 0;
+      var distance = (summary.length || 0) * 1000;
+      callback(coords, duration, distance);
+    } catch(e) { callback(null, null, null); }
+  };
+  xhr.onerror = xhr.ontimeout = function() {
+    if (routeXhrs[id] === xhr) routeXhrs[id] = null;
+    callback(null, null, null);
+  };
+  xhr.send(body);
+}
+
+// ── GL map: initialiser ────────────────────────────────────────────────
+// Destroys the previous GL instance, replaces the inner div with a fresh
+// DOM node (prevents WebGL context reuse issues on destination swap),
+// initialises GL, then fetches route via the provider-aware dispatcher.
+//
+// v0.16g: route fetch is now provider-aware — Stadia provider fetches from
+// Valhalla with current use_roads/use_hills; Mapbox provider fetches from
+// Mapbox Directions. The watch and preview now always show the same route.
+function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   var wrapperId = id === 'nav' ? 'navProgressMapWrap' : 'previewMapWrap';
   var innerId   = id + '-gl-inner';
   var wrapEl    = qs('#' + wrapperId);
   if (!wrapEl) return;
 
-  // Abort stale route XHR
-  if (routeXhrs[id]) {
-    try { routeXhrs[id].abort(); } catch(e) {}
-    routeXhrs[id] = null;
-  }
   // Destroy existing GL instance
   if (glInstances[id]) {
     try { glInstances[id].remove(); } catch(e) {}
     glInstances[id] = null;
   }
-  // Remove any existing tap overlay (from previous map init)
+  // Remove old tap overlay
   var oldOverlay = wrapEl.querySelector('.map-tap-overlay');
   if (oldOverlay) oldOverlay.parentNode.removeChild(oldOverlay);
-
-  // Replace inner div — gives GL a pristine DOM node, no WebGL state residue
+  // Replace inner div — fresh DOM node, no GL residue
   var oldInner = qs('#' + innerId);
   if (oldInner) oldInner.parentNode.removeChild(oldInner);
   var newInner = document.createElement('div');
@@ -483,8 +542,10 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onETA) {
   wrapEl.appendChild(newInner);
 
   if (typeof mapboxgl === 'undefined') {
-    if (onETA) onETA(null, null);
     fallbackStaticImage(wrapEl, tok, dLon, dLat);
+    fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, function(coords, dur, dist) {
+      if (onRouteReady) onRouteReady(null, dur, dist);
+    });
     return;
   }
 
@@ -501,85 +562,54 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onETA) {
   glInstances[id] = map;
   map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
-  // Fetch route geometry for the route line + accurate ETA
-  var url = 'https://api.mapbox.com/directions/v5/mapbox/' + S.profile
-    + '/' + oLon.toFixed(6) + ',' + oLat.toFixed(6)
-    + ';'  + dLon.toFixed(6) + ',' + dLat.toFixed(6)
-    + '?steps=false&overview=full&geometries=geojson&access_token='
-    + encodeURIComponent(tok);
+  // Fetch route geometry via the correct provider, then draw on the GL canvas
+  fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, function(coords, duration, distance) {
+    if (onRouteReady) onRouteReady(coords, duration, distance);
+    if (!coords || coords.length < 2) return; // route failed — map still shows tiles
 
-  var xhr = new XMLHttpRequest();
-  routeXhrs[id] = xhr;
-  xhr.open('GET', url);
-  xhr.timeout = 10000;
-
-  xhr.onload = function() {
-    if (routeXhrs[id] !== xhr) return;
-    routeXhrs[id] = null;
-    if (xhr.status !== 200) { if (onETA) onETA(null, null); return; }
-    try {
-      var data  = JSON.parse(xhr.responseText);
-      var route = data.routes && data.routes[0];
-      if (!route) { if (onETA) onETA(null, null); return; }
-      if (onETA) onETA(route.duration, route.distance);
-      var geo    = route.geometry;
-      var coords = geo.coordinates;
-
-      function drawRoute() {
-        var bounds = new mapboxgl.LngLatBounds();
-        coords.forEach(function(c) { bounds.extend(c); });
-        map.fitBounds(bounds, {
-          padding: { top:50, bottom:60, left:40, right:40 },
-          animate: false,
-          maxZoom: 15
-        });
-        // Route line: white casing (6px) + blue fill (4px)
-        map.addSource('rt', { type:'geojson', data:{ type:'Feature', geometry:geo } });
-        map.addLayer({ id:'rt-casing', type:'line', source:'rt',
-          layout:{'line-join':'round','line-cap':'round'},
-          paint:{'line-color':'#ffffff','line-width':6} });
-        map.addLayer({ id:'rt-fill', type:'line', source:'rt',
-          layout:{'line-join':'round','line-cap':'round'},
-          paint:{'line-color':'#007AFF','line-width':4} });
-        // Origin: green dot
-        var oEl = document.createElement('div');
-        oEl.style.cssText = 'width:14px;height:14px;border-radius:50%;'
-          + 'background:#34c759;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)';
-        new mapboxgl.Marker({ element: oEl }).setLngLat([oLon, oLat]).addTo(map);
-        // Destination: blue teardrop
-        new mapboxgl.Marker({ color: '#007AFF' }).setLngLat([dLon, dLat]).addTo(map);
-      }
-      map.isStyleLoaded() ? drawRoute() : map.once('load', drawRoute);
-    } catch(e) {
-      if (onETA) onETA(null, null);
+    function drawRouteOnMap() {
+      var bounds = new mapboxgl.LngLatBounds();
+      coords.forEach(function(c) { bounds.extend(c); });
+      map.fitBounds(bounds, {
+        padding: { top:50, bottom:60, left:40, right:40 },
+        animate: false,
+        maxZoom: 15
+      });
+      // Route line: white casing (6px) + provider-coloured fill (4px)
+      // Valhalla = purple to visually distinguish from Mapbox blue at a glance
+      var lineColour = S.provider === 'stadia' ? '#5b4bdb' : '#007AFF';
+      map.addSource('rt', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:coords } } });
+      map.addLayer({ id:'rt-casing', type:'line', source:'rt',
+        layout:{'line-join':'round','line-cap':'round'},
+        paint:{'line-color':'#ffffff','line-width':6} });
+      map.addLayer({ id:'rt-fill', type:'line', source:'rt',
+        layout:{'line-join':'round','line-cap':'round'},
+        paint:{'line-color':lineColour,'line-width':4} });
+      // Origin: green dot (provider-neutral — works for both)
+      var oEl = document.createElement('div');
+      oEl.style.cssText = 'width:14px;height:14px;border-radius:50%;'
+        + 'background:#34c759;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)';
+      new mapboxgl.Marker({ element: oEl }).setLngLat([oLon, oLat]).addTo(map);
+      // Destination: bold pin, provider colour
+      new mapboxgl.Marker({ color: lineColour }).setLngLat([dLon, dLat]).addTo(map);
     }
-  };
-  xhr.onerror = xhr.ontimeout = function() {
-    if (routeXhrs[id] === xhr) routeXhrs[id] = null;
-    if (onETA) onETA(null, null);
-  };
-  xhr.send();
 
-  // v0.16f: tap-to-interact overlay.
-  // Added after map init — overlay sits above the GL canvas (z-index:10).
-  // First touchstart or click removes it, making map fully interactive.
-  // This prevents a finger placed anywhere on the map while scrolling from
-  // accidentally panning/zooming the GL view instead of scrolling the page.
+    map.isStyleLoaded() ? drawRouteOnMap() : map.once('load', drawRouteOnMap);
+  });
+
+  // Tap-to-interact overlay
   var overlay = document.createElement('div');
   overlay.className = 'map-tap-overlay';
   overlay.innerHTML = '<span class="map-tap-label">Tap to interact</span>';
   wrapEl.appendChild(overlay);
-
   function activateMap(evt) {
-    evt.stopPropagation();  // don't let the activation tap also pan the map
+    evt.stopPropagation();
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
   }
-  // { once: true } ensures the listener auto-removes after first fire
   overlay.addEventListener('touchstart', activateMap, { once: true, passive: false });
   overlay.addEventListener('click',      activateMap, { once: true });
 }
 
-// Static image fallback when GL JS CDN fails
 function fallbackStaticImage(wrapEl, tok, dLon, dLat) {
   if (!tok || tok.indexOf('pk.') !== 0) return;
   var img = document.createElement('img');
@@ -608,7 +638,7 @@ function initNavProgress() {
   var oLat = hasGPS ? S.currentLat  : FALLBACK_LAT;
   var oLon = hasGPS ? S.currentLon  : FALLBACK_LON;
   initGLMap('nav', tok, oLon, oLat, parseFloat(S.active.lon), parseFloat(S.active.lat),
-    function(duration) {
+    function(coords, duration) {
       if (duration !== null && etaEl) {
         var arr2 = new Date(Date.now() + duration * 1000);
         etaEl.textContent = 'ETA ~' + pad2(arr2.getHours()) + ':' + pad2(arr2.getMinutes());
@@ -618,22 +648,35 @@ function initNavProgress() {
 }
 
 // ── Route preview ──────────────────────────────────────────────────────
+// v0.16g: ETA card includes a provider badge and routes are drawn in the
+// provider's colour (blue=Mapbox, purple=Valhalla) so the user can visually
+// confirm which engine is active. Slider changes immediately trigger a
+// fresh preview via bindAll() → profile-btn click handlers.
 function showRoutePreview(dest) {
   var prevSec = qs('#routePreview');
   if (!prevSec) return;
   var tok = currentToken();
   if (!tok || tok.indexOf('pk.') !== 0) { prevSec.style.display = 'none'; return; }
   prevSec.style.display = '';
+
   var hasGPS      = S.currentLat !== null && S.currentLon !== null;
   var oLat        = hasGPS ? S.currentLat : FALLBACK_LAT;
   var oLon        = hasGPS ? S.currentLon : FALLBACK_LON;
   var originLabel = hasGPS ? 'your location' : 'Auckland City Centre (no GPS yet)';
+
   var etaMain = qs('#previewEtaMain');
   var etaSub  = qs('#previewEtaSub');
   if (etaMain) etaMain.textContent = 'Calculating\u2026';
-  if (etaSub)  etaSub.textContent  = 'from ' + originLabel;
+  if (etaSub) {
+    // Provider badge shows which engine will be used — confirms sliders are active
+    var badge = S.provider === 'stadia'
+      ? '<span class="provider-badge stadia">Valhalla</span>'
+      : '<span class="provider-badge mapbox">Mapbox</span>';
+    etaSub.innerHTML = 'from ' + esc(originLabel) + badge;
+  }
+
   initGLMap('preview', tok, oLon, oLat, parseFloat(dest.lon), parseFloat(dest.lat),
-    function(duration, distance) {
+    function(coords, duration, distance) {
       if (duration !== null) {
         var mins    = Math.ceil(duration / 60);
         var distStr = distance >= 1000
@@ -641,8 +684,13 @@ function showRoutePreview(dest) {
           : Math.round(distance) + ' m';
         var arr = new Date(Date.now() + duration * 1000);
         if (etaMain) etaMain.textContent = '~' + mins + ' min  \u00b7  ' + distStr;
-        if (etaSub)  etaSub.textContent  = 'from ' + originLabel
-          + '  \u00b7  ETA ~' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
+        if (etaSub) {
+          var badge2 = S.provider === 'stadia'
+            ? '<span class="provider-badge stadia">Valhalla</span>'
+            : '<span class="provider-badge mapbox">Mapbox</span>';
+          etaSub.innerHTML = 'from ' + esc(originLabel) + badge2
+            + '  \u00b7  ETA ~' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
+        }
       } else {
         if (etaMain) etaMain.textContent = 'Route unavailable';
         if (etaSub)  etaSub.textContent  = '';
@@ -819,17 +867,20 @@ function bindAll(){
   var si=qs('#search');
   if(si)si.addEventListener('input',function(){clearTimeout(debTimer);var q=this.value;if(!q.trim()){clearSugs();setStatus('');return;}debTimer=setTimeout(function(){doSuggest(q);},350);});
 
+  // Profile change → refresh preview ETA and map with new profile
   var pb=qsa('[data-prof]');
   for(var i=0;i<pb.length;i++){(function(b){b.addEventListener('click',function(){
     S.profile=b.getAttribute('data-prof');renderProfile();
     if(S.active&&S.active.lat) showRoutePreview(S.active);
   });})(pb[i]);}
 
+  // Provider change → refresh preview with correct routing engine
   var provB=qsa('[data-prov]');
   for(var p=0;p<provB.length;p++){(function(b){b.addEventListener('click',function(){
     S.provider=b.getAttribute('data-prov');
     var sti=qs('#stadiaTokenInput');if(sti)S.stadiaToken=sti.value.trim();
     saveStore();renderProvider();
+    if(S.active&&S.active.lat) showRoutePreview(S.active); // refresh with new engine
   });})(provB[p]);}
 
   var stadiaInput=qs('#stadiaTokenInput');
@@ -838,9 +889,20 @@ function bindAll(){
     stadiaInput.addEventListener('change',function(){S.stadiaToken=this.value.trim();saveStore();});
   }
 
+  // Slider changes → refresh preview with updated costing options.
+  // Debounced 600ms — prevents firing a Valhalla request on every px of drag.
+  var sliderTimer = null;
   var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
-  if(ur)ur.addEventListener('input',function(){S.valhallaUseRoads=parseFloat(this.value)||0.25;if(urv)urv.textContent=S.valhallaUseRoads.toFixed(2);});
-  if(uh)uh.addEventListener('input',function(){S.valhallaUseHills=parseFloat(this.value)||0.10;if(uhv)uhv.textContent=S.valhallaUseHills.toFixed(2);});
+  function onSliderChange() {
+    if (ur) S.valhallaUseRoads = parseFloat(ur.value) || 0.25;
+    if (uh) S.valhallaUseHills = parseFloat(uh.value) || 0.10;
+    clearTimeout(sliderTimer);
+    sliderTimer = setTimeout(function() {
+      if (S.active && S.active.lat && S.provider === 'stadia') showRoutePreview(S.active);
+    }, 600);
+  }
+  if(ur){ur.addEventListener('input',function(){if(urv)urv.textContent=(parseFloat(this.value)||0.25).toFixed(2);onSliderChange();});}
+  if(uh){uh.addEventListener('input',function(){if(uhv)uhv.textContent=(parseFloat(this.value)||0.10).toFixed(2);onSliderChange();});}
 
   var ph=qs('#pickHome');if(ph)ph.addEventListener('click',function(){if(S.favs.home)selectDest(S.favs.home,false);});
   var pw=qs('#pickWork');if(pw)pw.addEventListener('click',function(){if(S.favs.work)selectDest(S.favs.work,false);});
