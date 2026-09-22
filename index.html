@@ -8,9 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
 
-<!-- Mapbox GL JS v2.15 — used for map tiles only when Stadia routing is active.
-     When Mapbox routing is active, also used for route geometry fetch.
-     WKWebView compatible (WebGL 1.0). -->
+<!-- Mapbox GL JS v2.15 — used for map tiles. Route geometry fetched
+     separately via provider-aware dispatcher (Mapbox or Stadia/Valhalla). -->
 <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet'>
 <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
 
@@ -27,8 +26,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .nav-dot{width:10px;height:10px;border-radius:50%;background:#4cd964;flex-shrink:0;box-shadow:0 0 0 3px rgba(76,217,100,.3)}
 
 /* ── GL map wrapper ──────────────────────────────────────────────────── */
+/* v0.16h: z-index removed from .map-loading.
+   The gl-inner div (position:absolute) comes AFTER map-loading in DOM source
+   order, so without z-index it stacks naturally above the loading text.
+   Previously z-index:1 on map-loading caused it to render above the GL canvas
+   even after tiles loaded (loading text always visible on top of map). */
 .gl-map-wrap{position:relative;background:#dce6f0;overflow:hidden}
-.gl-map-wrap .map-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#8e8e93;pointer-events:none;z-index:1}
+.gl-map-wrap .map-loading{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:13px;color:#8e8e93;pointer-events:none
+  /* z-index intentionally omitted — gl-inner (later in DOM) stacks above */
+}
 .gl-inner{position:absolute;top:0;left:0;width:100%;height:100%}
 .gl-inner .mapboxgl-map{position:absolute!important;top:0;left:0;width:100%!important;height:100%!important}
 
@@ -41,15 +49,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .eta-card-main{font-size:22px;font-weight:700;color:#111;line-height:1.2}
 .eta-card-sub{font-size:13px;color:#8e8e93;margin-top:4px}
 
-/* ── Provider badge on ETA card ──────────────────────────────────────── */
-/* Clearly shows which engine calculated the preview route.
-   Valhalla = purple (matches Stadia badge colour).
-   Mapbox = blue. Removed on public release if desired. */
-.provider-badge{
-  display:inline-block;font-size:10px;font-weight:700;
-  padding:2px 7px;border-radius:10px;margin-left:8px;
-  vertical-align:middle;letter-spacing:0.2px
-}
+/* ── Provider badge ─────────────────────────────────────────────────── */
+.provider-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:8px;vertical-align:middle;letter-spacing:0.2px}
 .provider-badge.stadia{background:#5b4bdb;color:#fff}
 .provider-badge.mapbox{background:#007AFF;color:#fff}
 
@@ -318,8 +319,6 @@ var S = {
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
 
-// Track GL instances and route XHRs per map slot ('nav' or 'preview').
-// Allows clean teardown when a new destination or provider is selected.
 var glInstances = {}, routeXhrs = {};
 var sessionTok = uuid4(), debTimer = null, pendXhr = null;
 
@@ -330,7 +329,6 @@ function esc(v){return String(v||'').replace(/[&<>"']/g,function(c){return{'&':'
 function getParam(n,fb){var m=location.search.match(new RegExp('[?&]'+n+'=([^&]*)'));return m?decodeURIComponent(m[1].replace(/\+/g,' ')):(fb||'');}
 function pad2(n){return n<10?'0'+n:''+n;}
 
-// ── Storage ────────────────────────────────────────────────────────────
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
   return{favs:{home:null,work:null},recents:[],turnAlerts:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10};
@@ -343,7 +341,6 @@ function saveStore(){
   }));}catch(e){}
 }
 
-// ── Init ───────────────────────────────────────────────────────────────
 function init(){
   var st=loadStore();
   S.favs=st.favs||{home:null,work:null};
@@ -385,8 +382,6 @@ function init(){
 }
 
 // ── Polyline6 decoder ─────────────────────────────────────────────────
-// Valhalla encodes shape as precision 1e-6 (Google/Mapbox use 1e-5).
-// Returns [[lon, lat], ...] — GeoJSON coordinate order.
 function decodePolyline6(str) {
   var coords = [], index = 0, lat = 0, lon = 0;
   while (index < str.length) {
@@ -402,17 +397,7 @@ function decodePolyline6(str) {
 }
 
 // ── Route fetch: provider-aware dispatcher ─────────────────────────────
-// v0.16g: preview now queries the SAME routing engine the watch will use.
-// This ensures the preview map shows the exact route (including use_roads
-// and use_hills preferences) that will be navigated — not Mapbox's default.
-//
-// callback(coords, durationSecs, distanceMetres) — coords = [[lon,lat],...]
-// On failure: callback(null, null, null)
-//
-// id: 'nav'|'preview' — used to track and cancel the XHR when destination
-// or provider changes.
 function fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, callback) {
-  // Abort any in-flight request for this map slot
   if (routeXhrs[id]) {
     try { routeXhrs[id].abort(); } catch(e) {}
     routeXhrs[id] = null;
@@ -424,7 +409,7 @@ function fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, callback) {
   }
 }
 
-// Mapbox Directions — geometry only (no steps needed for preview)
+// Mapbox Directions (GET — CORS simple request, no preflight)
 function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
   var profileMap = { cycling: 'cycling', walking: 'walking', driving: 'driving' };
   var profile = profileMap[S.profile] || 'cycling';
@@ -455,9 +440,42 @@ function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
   xhr.send();
 }
 
-// Stadia / Valhalla — identical costing to what the watch will use.
-// Authorization header keeps token out of URL and server logs.
-// Returns duration from trip.summary.time, distance from trip.summary.length * 1000.
+// ── Stadia / Valhalla route fetch (config page browser context) ────────
+//
+// v0.16h FIX: CORS — root cause of missing route line and pins on Stadia.
+//
+// The previous version used:
+//   xhr.open('POST', 'https://api.stadiamaps.com/route/v1')
+//   xhr.setRequestHeader('Content-Type', 'application/json')
+//   xhr.setRequestHeader('Authorization', 'Stadia-Auth ' + token)
+//
+// This triggers a CORS preflight OPTIONS request because:
+//   1. POST is not a CORS "simple" method for JSON payloads
+//   2. Content-Type: application/json triggers preflight
+//   3. Authorization is a custom header — triggers preflight
+//
+// WKWebView sends the OPTIONS preflight. If Stadia's API doesn't respond
+// with Access-Control-Allow-Headers: Authorization from foremat.github.io,
+// the browser blocks the real request → XHR onerror fires → callback(null)
+// → no route drawn. GL map tiles still load (different CORS-enabled origin).
+// This is why switching to Mapbox provider immediately showed the route:
+// Mapbox Directions uses a plain GET with no custom headers → no preflight.
+//
+// FIX: Switch to GET with json= query parameter + api_key= in URL.
+//   - GET = simple CORS method (no preflight required)
+//   - api_key in URL = authentication without Authorization header
+//   - No Content-Type header (GET has no body)
+//   → Zero CORS preflight triggers. Works from any browser origin.
+//
+// Note: PebbleKit JS (index.js) correctly uses POST + Authorization header
+// because PebbleKit JS runtime does NOT enforce CORS — it is not a browser.
+// The config page IS a browser (WKWebView) → different auth approach needed.
+//
+// Note: api_key in URL is acceptable here — the token is already stored in
+// browser localStorage and this call fires at most once per destination select.
+//
+// Valhalla GET format: GET /route/v1?api_key=KEY&json={...URL-encoded...}
+// This is the original Valhalla/Loki API format, supported by Stadia.
 function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
   var profileMap = { cycling: 'bicycle', walking: 'pedestrian', driving: 'auto' };
   var costing = profileMap[S.profile] || 'bicycle';
@@ -468,7 +486,7 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
       use_hills: S.valhallaUseHills
     };
   }
-  var body = JSON.stringify({
+  var jsonParam = JSON.stringify({
     locations: [
       { lon: parseFloat(oLon.toFixed(6)), lat: parseFloat(oLat.toFixed(6)), type: 'break' },
       { lon: parseFloat(dLon.toFixed(6)), lat: parseFloat(dLat.toFixed(6)), type: 'break' }
@@ -476,13 +494,14 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
     costing: costing,
     costing_options: costingOptions,
     directions_options: { units: 'kilometers' }
-    // No 'shape_format' param — default polyline6 encoding, decoded client-side
   });
+  // GET + api_key in URL + json= body param = no custom headers = no CORS preflight
+  var url = 'https://api.stadiamaps.com/route/v1'
+    + '?api_key=' + encodeURIComponent(S.stadiaToken)
+    + '&json='    + encodeURIComponent(jsonParam);
   var xhr = new XMLHttpRequest();
   routeXhrs[id] = xhr;
-  xhr.open('POST', 'https://api.stadiamaps.com/route/v1');
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.setRequestHeader('Authorization', 'Stadia-Auth ' + S.stadiaToken);
+  xhr.open('GET', url);  // GET — no Content-Type, no Authorization header
   xhr.timeout = 10000;
   xhr.onload = function() {
     if (routeXhrs[id] !== xhr) return;
@@ -495,46 +514,34 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
       }
       var leg     = data.trip.legs[0];
       var summary = data.trip.summary || {};
-      // Decode polyline6 shape → [[lon,lat], ...] GeoJSON coords
       var coords = typeof leg.shape === 'string'
         ? decodePolyline6(leg.shape)
         : (Array.isArray(leg.shape) ? leg.shape : []);
-      // duration = total seconds, distance = total km → convert to metres
-      var duration = summary.time   || 0;
-      var distance = (summary.length || 0) * 1000;
-      callback(coords, duration, distance);
+      callback(coords, summary.time || 0, (summary.length || 0) * 1000);
     } catch(e) { callback(null, null, null); }
   };
   xhr.onerror = xhr.ontimeout = function() {
     if (routeXhrs[id] === xhr) routeXhrs[id] = null;
     callback(null, null, null);
   };
-  xhr.send(body);
+  xhr.send();  // GET — no body
 }
 
 // ── GL map: initialiser ────────────────────────────────────────────────
-// Destroys the previous GL instance, replaces the inner div with a fresh
-// DOM node (prevents WebGL context reuse issues on destination swap),
-// initialises GL, then fetches route via the provider-aware dispatcher.
-//
-// v0.16g: route fetch is now provider-aware — Stadia provider fetches from
-// Valhalla with current use_roads/use_hills; Mapbox provider fetches from
-// Mapbox Directions. The watch and preview now always show the same route.
+// Destroys previous GL instance, replaces inner div (fresh WebGL context),
+// initialises GL, fetches route via provider-aware dispatcher.
 function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   var wrapperId = id === 'nav' ? 'navProgressMapWrap' : 'previewMapWrap';
   var innerId   = id + '-gl-inner';
   var wrapEl    = qs('#' + wrapperId);
   if (!wrapEl) return;
 
-  // Destroy existing GL instance
   if (glInstances[id]) {
     try { glInstances[id].remove(); } catch(e) {}
     glInstances[id] = null;
   }
-  // Remove old tap overlay
   var oldOverlay = wrapEl.querySelector('.map-tap-overlay');
   if (oldOverlay) oldOverlay.parentNode.removeChild(oldOverlay);
-  // Replace inner div — fresh DOM node, no GL residue
   var oldInner = qs('#' + innerId);
   if (oldInner) oldInner.parentNode.removeChild(oldInner);
   var newInner = document.createElement('div');
@@ -563,10 +570,9 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   glInstances[id] = map;
   map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
-  // Fetch route geometry via the correct provider, then draw on the GL canvas
   fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, function(coords, duration, distance) {
     if (onRouteReady) onRouteReady(coords, duration, distance);
-    if (!coords || coords.length < 2) return; // route failed — map still shows tiles
+    if (!coords || coords.length < 2) return;
 
     function drawRouteOnMap() {
       var bounds = new mapboxgl.LngLatBounds();
@@ -577,7 +583,6 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
         maxZoom: 15
       });
       // Route line: white casing (6px) + provider-coloured fill (4px)
-      // Valhalla = purple to visually distinguish from Mapbox blue at a glance
       var lineColour = S.provider === 'stadia' ? '#5b4bdb' : '#007AFF';
       map.addSource('rt', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:coords } } });
       map.addLayer({ id:'rt-casing', type:'line', source:'rt',
@@ -586,12 +591,12 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
       map.addLayer({ id:'rt-fill', type:'line', source:'rt',
         layout:{'line-join':'round','line-cap':'round'},
         paint:{'line-color':lineColour,'line-width':4} });
-      // Origin: green dot (provider-neutral — works for both)
+      // Origin: green dot
       var oEl = document.createElement('div');
       oEl.style.cssText = 'width:14px;height:14px;border-radius:50%;'
         + 'background:#34c759;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)';
       new mapboxgl.Marker({ element: oEl }).setLngLat([oLon, oLat]).addTo(map);
-      // Destination: bold pin, provider colour
+      // Destination pin: provider colour
       new mapboxgl.Marker({ color: lineColour }).setLngLat([dLon, dLat]).addTo(map);
     }
 
@@ -649,10 +654,6 @@ function initNavProgress() {
 }
 
 // ── Route preview ──────────────────────────────────────────────────────
-// v0.16g: ETA card includes a provider badge and routes are drawn in the
-// provider's colour (blue=Mapbox, purple=Valhalla) so the user can visually
-// confirm which engine is active. Slider changes immediately trigger a
-// fresh preview via bindAll() → profile-btn click handlers.
 function showRoutePreview(dest) {
   var prevSec = qs('#routePreview');
   if (!prevSec) return;
@@ -669,7 +670,6 @@ function showRoutePreview(dest) {
   var etaSub  = qs('#previewEtaSub');
   if (etaMain) etaMain.textContent = 'Calculating\u2026';
   if (etaSub) {
-    // Provider badge shows which engine will be used — confirms sliders are active
     var badge = S.provider === 'stadia'
       ? '<span class="provider-badge stadia">Valhalla</span>'
       : '<span class="provider-badge mapbox">Mapbox</span>';
@@ -868,20 +868,18 @@ function bindAll(){
   var si=qs('#search');
   if(si)si.addEventListener('input',function(){clearTimeout(debTimer);var q=this.value;if(!q.trim()){clearSugs();setStatus('');return;}debTimer=setTimeout(function(){doSuggest(q);},350);});
 
-  // Profile change → refresh preview ETA and map with new profile
   var pb=qsa('[data-prof]');
   for(var i=0;i<pb.length;i++){(function(b){b.addEventListener('click',function(){
     S.profile=b.getAttribute('data-prof');renderProfile();
     if(S.active&&S.active.lat) showRoutePreview(S.active);
   });})(pb[i]);}
 
-  // Provider change → refresh preview with correct routing engine
   var provB=qsa('[data-prov]');
   for(var p=0;p<provB.length;p++){(function(b){b.addEventListener('click',function(){
     S.provider=b.getAttribute('data-prov');
     var sti=qs('#stadiaTokenInput');if(sti)S.stadiaToken=sti.value.trim();
     saveStore();renderProvider();
-    if(S.active&&S.active.lat) showRoutePreview(S.active); // refresh with new engine
+    if(S.active&&S.active.lat) showRoutePreview(S.active);
   });})(provB[p]);}
 
   var stadiaInput=qs('#stadiaTokenInput');
@@ -890,8 +888,6 @@ function bindAll(){
     stadiaInput.addEventListener('change',function(){S.stadiaToken=this.value.trim();saveStore();});
   }
 
-  // Slider changes → refresh preview with updated costing options.
-  // Debounced 600ms — prevents firing a Valhalla request on every px of drag.
   var sliderTimer = null;
   var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
   function onSliderChange() {
