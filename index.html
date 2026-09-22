@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,7 +132,7 @@ body{
 .rec-name{font-size:15px;font-weight:600;color:#111}
 .rec-addr{font-size:12px;color:#8e8e93;margin-top:2px}
 .empty-msg{padding:14px 16px;font-size:14px;color:#aaa;font-style:italic}
-/* ── Route profile selector ─────────────────────────────────────────── */
+/* ── Segmented controls (profile + provider) ────────────────────────── */
 .profile-row{display:flex;gap:0;padding:12px 16px 16px}
 .profile-btn{
   flex:1;padding:12px 4px;
@@ -149,7 +150,6 @@ body{
   color:#fff;position:relative;z-index:1
 }
 /* ── Toggle row (iOS-style) ─────────────────────────────────────────── */
-/* v0.15b: Turn alerts toggle */
 .toggle-row{
   display:flex;align-items:center;justify-content:space-between;
   padding:14px 16px;
@@ -160,17 +160,14 @@ body{
 }
 .toggle-row:last-child{border-bottom:none}
 .toggle-label{font-size:16px;color:#111;font-weight:400}
-/* Hide native checkbox */
 .toggle-row input[type="checkbox"]{
   position:absolute;opacity:0;width:0;height:0
 }
-/* Track */
 .toggle-track{
   position:relative;width:51px;height:31px;
   background:#e5e5ea;border-radius:16px;
   transition:background .2s;flex-shrink:0
 }
-/* Thumb */
 .toggle-track::after{
   content:'';
   position:absolute;top:2px;left:2px;
@@ -179,10 +176,8 @@ body{
   box-shadow:0 1px 3px rgba(0,0,0,.3);
   transition:transform .2s
 }
-/* Checked state */
 .toggle-row input:checked + .toggle-track{background:#34c759}
 .toggle-row input:checked + .toggle-track::after{transform:translateX(20px)}
-/* Hint text below section */
 .sec-hint{
   font-size:13px;color:#6c6c70;
   padding:6px 16px 14px;
@@ -212,6 +207,21 @@ body{
 }
 .token-input:focus{border-color:#007AFF;background:#fff}
 .adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}
+/* ── v0.16: Stadia key section (shown only when provider = Stadia) ──── */
+.stadia-section{
+  background:#fff;
+  border-top:1px solid #e5e5ea;
+  border-bottom:1px solid #e5e5ea;
+  margin-top:0;padding:0 16px 16px
+}
+.stadia-badge{
+  display:inline-block;
+  font-size:11px;font-weight:700;
+  color:#fff;background:#5b4bdb;
+  border-radius:4px;padding:2px 6px;
+  margin-left:8px;vertical-align:middle;
+  letter-spacing:.3px
+}
 /* ── Bottom spacer + fixed save bar ────────────────────────────────── */
 .end-space{height:16px}
 .save-bar{
@@ -253,7 +263,6 @@ body{
     <div class="hdr-sub">Pebble navigation settings</div>
   </div>
 </header>
-
 <!-- Search (sticky at top) -->
 <div class="search-bar">
   <div class="search-wrap">
@@ -266,7 +275,6 @@ body{
 </div>
 <div id="suggestions" class="suggestions"></div>
 <div id="srchStatus" class="srch-status"></div>
-
 <!-- Current destination (hidden until a destination is selected) -->
 <div id="currentSection" class="section" style="display:none">
   <div class="sec-hdr">Current Destination</div>
@@ -282,7 +290,6 @@ body{
     <button class="dest-fav-btn" id="saveWork">💼 Save as Work</button>
   </div>
 </div>
-
 <!-- Quick destinations -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Quick Destinations</div>
@@ -303,13 +310,11 @@ body{
     <span class="chev">›</span>
   </div>
 </div>
-
 <!-- Recents -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Recent</div>
   <div id="recentsList"></div>
 </div>
-
 <!-- Route profile -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Route Profile</div>
@@ -319,11 +324,37 @@ body{
     <button class="profile-btn" data-prof="driving">🚗 Driving</button>
   </div>
 </div>
-
+<!-- ── Routing Provider — v0.16 ───────────────────────────────────── -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Routing Provider</div>
+  <div class="profile-row">
+    <button class="profile-btn" data-prov="mapbox">Mapbox</button>
+    <button class="profile-btn" data-prov="stadia">Stadia <span class="stadia-badge">BETA</span></button>
+  </div>
+</div>
+<p class="sec-hint">
+  Stadia uses Valhalla routing — better cycling path preference and roundabout
+  detection for NZ. Requires a free API key from stadiamaps.com.
+  Search always uses Mapbox.
+</p>
+<!-- ── Stadia API key (visible only when provider = Stadia) ─────────── -->
+<div id="stadiaSection" class="section" style="margin-top:0;display:none">
+  <div class="sec-hdr">Stadia API Key</div>
+  <div style="padding:0 16px 16px">
+    <input id="stadiaTokenInput" class="token-input" type="text"
+           placeholder="Your Stadia Maps API key"
+           autocapitalize="none" autocorrect="off" spellcheck="false">
+    <div class="adv-hint" style="margin-top:8px">
+      Get a free key at <strong>stadiamaps.com</strong> → Dashboard → API Keys.
+      100,000 requests/month free. Add a referrer restriction to
+      <code>https://foremat.github.io</code> in the dashboard for config page protection.
+      Note: restriction does not apply to PebbleKit JS routing calls.
+    </div>
+  </div>
+</div>
 <!-- ── Preferences ── v0.15b ──────────────────────────────────────── -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Preferences</div>
-  <!-- Turn alerts toggle -->
   <label class="toggle-row" for="turnAlerts">
     <span class="toggle-label">Turn alerts</span>
     <input type="checkbox" id="turnAlerts" checked>
@@ -334,7 +365,6 @@ body{
   Colour flash and vibration before each turn.
   The close-range vibration always fires.
 </p>
-
 <!-- Advanced (collapsed by default) -->
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
@@ -346,39 +376,37 @@ body{
          placeholder="pk.eyJ..."
          autocapitalize="none" autocorrect="off" spellcheck="false">
   <div class="adv-hint">
-    A default token is pre-configured — you don't need to touch this.
-    Only change it if you want to use your own Mapbox account token.
+    Required for destination search (even when using Stadia routing).
+    A default token is pre-configured. Only change it to use your own Mapbox account.
     Always use a public token (starts with pk.), never a secret token.
     Stored privately on your phone.
   </div>
 </div>
-
 <div class="end-space"></div>
-
 <!-- Fixed bottom save bar -->
 <div class="save-bar">
   <button class="btn-cancel" id="cancelBtn">Cancel</button>
   <button class="btn-save" id="saveBtn" disabled>Set on watch</button>
 </div>
-
 <script>
 (function () {
 'use strict';
 var STORE_KEY = 'glancenav-config-v1';
 var PROXIMITY = '174.7633,-36.8485';
-
+// v0.16: S now includes stadiaToken and provider
 var S = {
-  token:      '',
-  profile:    'cycling',
-  active:     null,
-  favs:       { home: null, work: null },
-  recents:    [],
-  turnAlerts: true   // v0.15b: default ON
+  token:       '',
+  stadiaToken: '',        // v0.16: Stadia Maps API key
+  provider:    'mapbox',  // v0.16: 'mapbox' | 'stadia'
+  profile:     'cycling',
+  active:      null,
+  favs:        { home: null, work: null },
+  recents:     [],
+  turnAlerts:  true
 };
 var sessionTok = uuid4();
 var debTimer   = null;
 var pendXhr    = null;
-
 function uuid4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -396,28 +424,32 @@ function getParam(name, fallback) {
   var m = location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
   return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : (fallback || '');
 }
-
 function loadStore() {
   try {
     var raw = localStorage.getItem(STORE_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
-  return { favs: { home: null, work: null }, recents: [], turnAlerts: true };
+  return { favs: { home: null, work: null }, recents: [], turnAlerts: true,
+           provider: 'mapbox', stadiaToken: '' };  // v0.16 defaults
 }
 function saveStore() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
-      favs: S.favs, recents: S.recents, turnAlerts: S.turnAlerts
+      favs:        S.favs,
+      recents:     S.recents,
+      turnAlerts:  S.turnAlerts,
+      provider:    S.provider,    // v0.16
+      stadiaToken: S.stadiaToken  // v0.16
     }));
   } catch (e) {}
 }
-
 function init() {
   var stored = loadStore();
-  S.favs    = stored.favs    || { home: null, work: null };
-  S.recents = stored.recents || [];
-  // v0.15b: restore toggle from localStorage (default ON)
-  S.turnAlerts = stored.turnAlerts !== false;
+  S.favs       = stored.favs        || { home: null, work: null };
+  S.recents    = stored.recents     || [];
+  S.turnAlerts = stored.turnAlerts  !== false;
+  S.provider   = stored.provider === 'stadia' ? 'stadia' : 'mapbox'; // v0.16
+  S.stadiaToken = stored.stadiaToken || '';                            // v0.16
 
   var rawSettings = getParam('s', '');
   if (rawSettings) {
@@ -433,26 +465,32 @@ function init() {
           lon:     inc.dest.lon
         };
       }
-      // v0.15b: turnAlerts from index.js handoff overrides localStorage
       if (typeof inc.turnAlerts !== 'undefined') {
         S.turnAlerts = inc.turnAlerts !== false;
       }
+      // v0.16: restore provider + stadiaToken from JS handoff
+      // (handoff overrides localStorage — JS is the source of truth)
+      if (inc.provider === 'stadia') S.provider = 'stadia';
+      else if (inc.provider === 'mapbox') S.provider = 'mapbox';
+      if (inc.stadiaToken) S.stadiaToken = inc.stadiaToken;
     } catch (e) {}
   }
 
   var ti = qs('#tokenInput');
   if (ti) ti.value = S.token;
 
-  // v0.15b: set toggle state
   var ta = qs('#turnAlerts');
   if (ta) ta.checked = S.turnAlerts;
+
+  var sti = qs('#stadiaTokenInput'); // v0.16
+  if (sti) sti.value = S.stadiaToken;
 
   renderAll();
   bindAll();
 }
-
 function renderAll() {
   renderProfile();
+  renderProvider();  // v0.16
   renderCurrent();
   renderFavs();
   renderRecents();
@@ -464,6 +502,16 @@ function renderProfile() {
     var b = btns[i];
     b.className = 'profile-btn' + (b.getAttribute('data-prof') === S.profile ? ' on' : '');
   }
+}
+// v0.16: render provider selector + show/hide Stadia key section
+function renderProvider() {
+  var btns = qsa('[data-prov]');
+  for (var i = 0; i < btns.length; i++) {
+    var b = btns[i];
+    b.className = 'profile-btn' + (b.getAttribute('data-prov') === S.provider ? ' on' : '');
+  }
+  var sec = qs('#stadiaSection');
+  if (sec) sec.style.display = S.provider === 'stadia' ? '' : 'none';
 }
 function renderCurrent() {
   var sec = qs('#currentSection');
@@ -525,7 +573,6 @@ function updateSaveBtn() {
   var btn = qs('#saveBtn');
   if (btn) btn.disabled = !(S.active && S.active.lat);
 }
-
 /* ── Mapbox Search Box: suggest ──────────────────────────────────── */
 function doSuggest(q) {
   var tok = currentToken();
@@ -563,7 +610,6 @@ function doSuggest(q) {
   xhr.ontimeout = function () { if (xhr !== pendXhr) return; pendXhr = null; setStatus('Search timed out.', true); };
   xhr.send();
 }
-
 /* ── Mapbox Search Box: retrieve ──────────────────────────────────── */
 function doRetrieve(mapboxId, suggName, suggAddr) {
   var tok = currentToken();
@@ -606,7 +652,6 @@ function doRetrieve(mapboxId, suggName, suggAddr) {
   xhr.ontimeout = function () { setStatus('Request timed out.', true); };
   xhr.send();
 }
-
 var FT_ICON = { poi:'📍', address:'🏠', place:'🏙️', street:'🛣️', neighborhood:'🏘️', locality:'🏙️' };
 function renderSugs(sugs) {
   var c = qs('#suggestions');
@@ -651,7 +696,6 @@ function currentToken() {
   var ti = qs('#tokenInput');
   return (ti ? ti.value.trim() : '') || S.token;
 }
-
 /* ── Destination selection ──────────────────────────────────────── */
 function selectDest(dest, addRecent) {
   S.active = dest;
@@ -687,10 +731,11 @@ function saveFav(key) {
     setTimeout(function () { btn.textContent = orig; }, 1600);
   }
 }
-
 /* ── Save / Cancel ──────────────────────────────────────────────── */
 function doSave() {
   if (!S.active || !S.active.lat) { alert('Choose a destination first.'); return; }
+
+  // Mapbox token required for search regardless of routing provider
   var tok = currentToken();
   if (!tok || tok.indexOf('pk.') !== 0) {
     var ab = qs('#advBody');
@@ -699,17 +744,27 @@ function doSave() {
       var arr = qs('#advArrow');
       if (arr) arr.textContent = '\u2039';
     }
-    alert('A Mapbox public token (starts with pk.) is required.\nOpen \u2699 Advanced to add one.');
+    alert('A Mapbox public token (starts with pk.) is required.\n' +
+          'Open \u2699 Advanced to add one.\n' +
+          '(Used for destination search, even with Stadia routing.)');
     return;
   }
-  // v0.15b: include turnAlerts in payload sent back to index.js
+
+  // v0.16: Stadia token required when Stadia provider selected
+  if (S.provider === 'stadia' && !S.stadiaToken) {
+    alert('Add your Stadia API key above to use Stadia routing,\nor switch back to Mapbox.');
+    return;
+  }
+
   var result = {
     mapboxToken: tok,
+    stadiaToken: S.stadiaToken || '',  // v0.16
     profile:     S.profile,
     destName:    S.active.name    || '',
     destLat:     S.active.lat,
     destLon:     S.active.lon,
-    turnAlerts:  S.turnAlerts     // v0.15b: boolean → index.js saves + sends to watch
+    turnAlerts:  S.turnAlerts,
+    provider:    S.provider           // v0.16
   };
   var rt = getParam('return_to', 'pebblejs://close#');
   document.location = rt + encodeURIComponent(JSON.stringify(result));
@@ -717,7 +772,6 @@ function doSave() {
 function doCancel() {
   document.location = getParam('return_to', 'pebblejs://close#');
 }
-
 /* ── Event binding ──────────────────────────────────────────────── */
 function bindAll() {
   var si = qs('#search');
@@ -729,6 +783,8 @@ function bindAll() {
       debTimer = setTimeout(function () { doSuggest(q); }, 350);
     });
   }
+
+  // Profile buttons
   var pbtns = qsa('[data-prof]');
   for (var i = 0; i < pbtns.length; i++) {
     pbtns[i].addEventListener('click', function () {
@@ -736,6 +792,32 @@ function bindAll() {
       renderProfile();
     });
   }
+
+  // v0.16: Provider buttons
+  var provBtns = qsa('[data-prov]');
+  for (var p = 0; p < provBtns.length; p++) {
+    provBtns[p].addEventListener('click', function () {
+      S.provider = this.getAttribute('data-prov');
+      // Sync Stadia token from input before re-render (in case user typed)
+      var sti = qs('#stadiaTokenInput');
+      if (sti) S.stadiaToken = sti.value.trim();
+      saveStore();
+      renderProvider();
+    });
+  }
+
+  // v0.16: Stadia token input
+  var stadiaInput = qs('#stadiaTokenInput');
+  if (stadiaInput) {
+    stadiaInput.addEventListener('input', function () {
+      S.stadiaToken = this.value.trim();
+    });
+    stadiaInput.addEventListener('change', function () {
+      S.stadiaToken = this.value.trim();
+      saveStore(); // persist immediately
+    });
+  }
+
   var ph = qs('#pickHome');
   if (ph) ph.addEventListener('click', function () {
     if (S.favs.home) selectDest(S.favs.home, false);
@@ -749,20 +831,20 @@ function bindAll() {
   var sw = qs('#saveWork');
   if (sw) sw.addEventListener('click', function () { saveFav('work'); });
 
-  // v0.15b: turn alerts toggle
+  // Turn alerts toggle
   var ta = qs('#turnAlerts');
   if (ta) {
     ta.addEventListener('change', function () {
       S.turnAlerts = this.checked;
-      saveStore(); // persist immediately so toggle survives page reload
+      saveStore();
     });
   }
 
-  var at = qs('#advToggle'), ab = qs('#advBody'), arr = qs('#advArrow');
+  var at = qs('#advToggle'), ab = qs('#advBody'), ar = qs('#advArrow');
   if (at && ab) {
     at.addEventListener('click', function () {
       var open = ab.classList.toggle('open');
-      if (arr) arr.textContent = open ? '\u2039' : '\u203a';
+      if (ar) ar.textContent = open ? '\u2039' : '\u203a';
     });
   }
   var sb = qs('#saveBtn');
@@ -770,7 +852,6 @@ function bindAll() {
   var cb = qs('#cancelBtn');
   if (cb) cb.addEventListener('click', doCancel);
 }
-
 /* ── Boot ───────────────────────────────────────────────────────── */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
