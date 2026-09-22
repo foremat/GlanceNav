@@ -2,9 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="theme-color" content="#1c1c1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
+
+<!-- Mapbox GL JS v2.15 — uses WebGL 1.0 for broadest WKWebView compatibility.
+     Loaded from CDN. Cached by WKWebView after first load.
+     Required for interactive route map with pinch-zoom and route line.
+     Fallback to static map if GL fails to load (typeof mapboxgl check in JS). -->
+<link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet'>
+<script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -12,25 +21,45 @@ body{
   font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;
   -webkit-text-size-adjust:100%;padding-bottom:88px
 }
+/* ── Header ─────────────────────────────────────────────────────────── */
 .hdr{background:#1c1c1e;color:#fff;padding:16px 16px 14px;display:flex;align-items:center;gap:12px}
 .hdr-icon{font-size:26px;line-height:1;flex-shrink:0}
 .hdr-title{font-size:19px;font-weight:700;letter-spacing:-.3px}
 .hdr-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:2px}
 
-/* ── Navigation in progress banner ─────────────────────────────────── */
-.nav-progress-banner{
-  background:#1a6b31;color:#fff;padding:10px 16px;
-  display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600
+/* ── Navigation in progress ─────────────────────────────────────────── */
+.nav-banner{background:#1a6b31;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.nav-dot{width:10px;height:10px;border-radius:50%;background:#4cd964;flex-shrink:0;box-shadow:0 0 0 3px rgba(76,217,100,.3)}
+
+/* ── GL map containers ───────────────────────────────────────────────── */
+/* Both navigation-progress map and route-preview map use GL JS.
+   Heights are explicit — GL cannot infer height from content.
+   GL injects its own canvas inside these divs at initialisation. */
+.gl-map-container{
+  position:relative;
+  background:#dce6f0;  /* loading placeholder colour */
 }
-.nav-dot{
-  width:10px;height:10px;border-radius:50%;background:#4cd964;flex-shrink:0;
-  box-shadow:0 0 0 3px rgba(76,217,100,.3)
+.gl-map-container .map-loading{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:13px;color:#8e8e93;pointer-events:none;z-index:1
 }
-.nav-progress-map{
-  background:#c8d6e5;min-height:140px;
-  display:flex;align-items:center;justify-content:center;overflow:hidden
+/* GL map canvas fills its container */
+.gl-map-container .mapboxgl-map{ position:absolute;top:0;left:0;width:100%;height:100% }
+
+/* ── Route ETA card ──────────────────────────────────────────────────── */
+/* Shown below the GL map. More prominent than the previous icon-row layout.
+   Large time + distance on one line, origin context on second line. */
+.eta-card{
+  padding:14px 16px 12px;
+  border-top:1px solid #e5e5ea;
+  background:#f8fff9
 }
-.nav-progress-map img{width:100%;display:block}
+.eta-card-main{
+  font-size:22px;font-weight:700;color:#111;line-height:1.2
+}
+.eta-card-sub{
+  font-size:13px;color:#8e8e93;margin-top:4px
+}
 
 /* ── Search bar ─────────────────────────────────────────────────────── */
 .search-bar{background:#fff;padding:10px 12px;border-bottom:1px solid #e5e5ea;position:sticky;top:0;z-index:20}
@@ -63,7 +92,7 @@ body{
 .sec-hdr{padding:12px 16px 5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73}
 .sec-hint{font-size:13px;color:#6c6c70;padding:6px 16px 14px;line-height:1.4}
 
-/* ── Current destination (v0.16b: blue accent, no emoji) ────────────── */
+/* ── Selected destination (blue accent) ─────────────────────────────── */
 #currentSection{border-left:4px solid #007AFF !important;background:#fff}
 .dest-card{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;background:#f0f7ff}
 .dest-indicator{width:10px;height:10px;border-radius:50%;background:#007AFF;margin-top:5px;flex-shrink:0}
@@ -72,26 +101,12 @@ body{
 .dest-fav-row{display:flex;gap:8px;padding:0 16px 14px;background:#f0f7ff}
 .dest-fav-btn{
   flex:1;padding:10px 6px;font-size:14px;font-weight:600;
-  border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;background:#fff;
-  cursor:pointer;-webkit-tap-highlight-color:transparent
+  border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;background:#fff;cursor:pointer
 }
 .dest-fav-btn:active{background:#eef5ff}
 
-/* ── Route preview (v0.16c: uses real GPS) ─────────────────────────── */
-.route-preview{background:#fff;overflow:hidden;border-top:1px solid #e5e5ea}
-.preview-map{background:#dce6f0;min-height:120px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.preview-map img{width:100%;display:block}
-.preview-map-loading{font-size:13px;color:#8e8e93;padding:16px}
-.preview-eta-row{padding:10px 16px 12px;display:flex;align-items:center;gap:8px;border-top:1px solid #f2f2f7}
-.preview-eta-icon{font-size:18px}
-.preview-eta-text{font-size:14px;font-weight:600;color:#111}
-.preview-eta-sub{font-size:12px;color:#8e8e93;margin-top:1px}
-
-/* ── Quick pick ─────────────────────────────────────────────────────── */
-.pick-item{
-  padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;
-  cursor:pointer;min-height:62px;-webkit-tap-highlight-color:rgba(0,0,0,.04)
-}
+/* ── Quick pick rows ────────────────────────────────────────────────── */
+.pick-item{padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:62px;-webkit-tap-highlight-color:rgba(0,0,0,.04)}
 .pick-item:last-child{border-bottom:none}
 .pick-item:active{background:#f5f5f5}
 .pick-item.disabled{opacity:.42;cursor:default}
@@ -132,7 +147,7 @@ body{
 .toggle-row input:checked + .toggle-track{background:#34c759}
 .toggle-row input:checked + .toggle-track::after{transform:translateX(20px)}
 
-/* ── Stadia + Valhalla ───────────────────────────────────────────────── */
+/* ── Stadia + Valhalla sliders ───────────────────────────────────────── */
 .stadia-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#5b4bdb;border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:middle}
 .slider-row{padding:12px 16px;border-bottom:1px solid #f2f2f7}
 .slider-row:last-child{border-bottom:none}
@@ -172,18 +187,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </header>
 
-<!-- Navigation in progress banner (shown when mid-journey) -->
+<!-- ── Navigation in progress ────────────────────────────────────────── -->
+<!-- GL JS interactive map — pinch to zoom, shows route line + current GPS. -->
 <div id="navProgressSection" style="display:none">
-  <div class="nav-progress-banner">
+  <div class="nav-banner">
     <div class="nav-dot"></div>
     <span>Navigation in progress</span>
-    <span id="navProgressEtaInline" style="margin-left:auto;font-weight:400;font-size:13px"></span>
+    <span id="navProgressEta" style="margin-left:auto;font-weight:400;font-size:13px"></span>
   </div>
-  <div class="nav-progress-map" id="navProgressMap">
-    <span style="font-size:13px;color:#8e8e93;padding:16px">Loading map…</span>
+  <!-- GL map fills this container. Height set here; GL injects canvas inside. -->
+  <div id="navProgressMap" class="gl-map-container" style="height:200px">
+    <span class="map-loading">Loading map…</span>
   </div>
 </div>
 
+<!-- Search -->
 <div class="search-bar">
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -195,7 +213,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 <div id="suggestions" class="suggestions"></div>
 <div id="srchStatus" class="srch-status"></div>
 
-<!-- Selected destination -->
+<!-- Selected destination + route preview -->
 <div id="currentSection" class="section" style="display:none">
   <div class="sec-hdr">Selected Destination</div>
   <div class="dest-card">
@@ -209,17 +227,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <button class="dest-fav-btn" id="saveHome">🏠 Save as Home</button>
     <button class="dest-fav-btn" id="saveWork">💼 Save as Work</button>
   </div>
-  <!-- Route preview: static map + ETA (v0.16c: uses real GPS as origin if available) -->
-  <div class="route-preview" id="routePreview" style="display:none">
-    <div class="preview-map" id="previewMap">
-      <span class="preview-map-loading">Loading preview…</span>
+
+  <!-- Route preview: GL map + ETA card.
+       Map shows interactive route from origin (real GPS or CBD fallback) to destination.
+       User can pinch-zoom to see street-level detail, pan to explore the route.
+       ETA card shows prominently below the map immediately on destination selection. -->
+  <div id="routePreview" style="display:none">
+    <!-- ETA card shown immediately in "Calculating…" state, updated when API returns -->
+    <div class="eta-card" id="previewEtaCard">
+      <div class="eta-card-main" id="previewEtaMain">Calculating…</div>
+      <div class="eta-card-sub" id="previewEtaSub"></div>
     </div>
-    <div class="preview-eta-row" id="previewEtaRow" style="display:none">
-      <span class="preview-eta-icon">🕐</span>
-      <div>
-        <div class="preview-eta-text" id="previewEtaText"></div>
-        <div class="preview-eta-sub" id="previewEtaSub">rough estimate</div>
-      </div>
+    <!-- GL map: 240px — tall enough to see street context on a typical Auckland commute -->
+    <div id="previewMapGL" class="gl-map-container" style="height:240px">
+      <span class="map-loading">Loading map…</span>
     </div>
   </div>
 </div>
@@ -265,7 +286,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 </div>
 <p class="sec-hint">Stadia uses Valhalla routing — better cycling path preference and roundabout detection for NZ. Search always uses Mapbox.</p>
 
-<!-- Stadia API key (shown when Stadia selected) -->
+<!-- Stadia API key -->
 <div id="stadiaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Stadia API Key</div>
   <div style="padding:0 16px 16px">
@@ -274,28 +295,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
            autocapitalize="none" autocorrect="off" spellcheck="false">
     <div class="adv-hint" style="margin-top:8px">
       Free at <strong>stadiamaps.com</strong> → Dashboard → Manage Properties → Add API Key.
-      Add referrer <code>https://foremat.github.io</code> in the dashboard for config page protection.
-      Routing calls (from PebbleKit JS) do not send a Referer header so restriction does not apply to them.
+      Add referrer <code>https://foremat.github.io</code> for config page protection.
     </div>
   </div>
 </div>
 
-<!-- Valhalla sliders (testing aid — shown when Stadia selected) -->
+<!-- Valhalla sliders (testing — shown when Stadia selected) -->
 <div id="valhallaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Valhalla Cycling Options <span style="font-size:10px;color:#8e8e93;font-weight:400;text-transform:none;letter-spacing:0">(testing)</span></div>
   <div class="slider-row">
-    <div class="slider-label-row">
-      <span class="slider-label">Road preference</span>
-      <span class="slider-value" id="useRoadsVal">0.25</span>
-    </div>
+    <div class="slider-label-row"><span class="slider-label">Road preference</span><span class="slider-value" id="useRoadsVal">0.25</span></div>
     <input type="range" id="useRoads" min="0" max="1" step="0.05" value="0.25">
     <div class="slider-ends"><span>Paths only</span><span>Roads only</span></div>
   </div>
   <div class="slider-row">
-    <div class="slider-label-row">
-      <span class="slider-label">Hill tolerance</span>
-      <span class="slider-value" id="useHillsVal">0.10</span>
-    </div>
+    <div class="slider-label-row"><span class="slider-label">Hill tolerance</span><span class="slider-value" id="useHillsVal">0.10</span></div>
     <input type="range" id="useHills" min="0" max="1" step="0.05" value="0.10">
     <div class="slider-ends"><span>Avoid hills</span><span>Welcome hills</span></div>
   </div>
@@ -320,12 +334,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 <div class="adv-body" id="advBody">
   <div class="adv-lbl">Mapbox public token</div>
   <input id="tokenInput" class="token-input" type="text"
-         placeholder="pk.eyJ..."
-         autocapitalize="none" autocorrect="off" spellcheck="false">
-  <div class="adv-hint">
-    Required for destination search (even when using Stadia routing).
-    Always use a public token (pk.), never a secret token.
-  </div>
+         placeholder="pk.eyJ..." autocapitalize="none" autocorrect="off" spellcheck="false">
+  <div class="adv-hint">Required for destination search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
 </div>
 
 <div class="end-space"></div>
@@ -337,116 +347,328 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 <script>
 (function () {
 'use strict';
-var STORE_KEY = 'glancenav-config-v1';
-// Auckland CBD — fallback origin for route preview when real GPS is unavailable.
-var FALLBACK_LAT = -36.8485, FALLBACK_LON = 174.7633;
 
+var STORE_KEY    = 'glancenav-config-v1';
+// Auckland CBD — fallback origin when real GPS coords are unavailable
+// (e.g., first-ever config open before any navigation session has started).
+var FALLBACK_LAT = -36.8485;
+var FALLBACK_LON = 174.7633;
+
+// ── State ──────────────────────────────────────────────────────────────
 var S = {
   token:'', stadiaToken:'', provider:'mapbox', profile:'cycling',
   active:null, favs:{home:null,work:null}, recents:[], turnAlerts:true,
   valhallaUseRoads:0.25, valhallaUseHills:0.10,
-  // Navigation-in-progress context from JS handoff (v0.16c: real GPS coords)
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
-var sessionTok=uuid4(), debTimer=null, pendXhr=null, previewEtaXhr=null;
+
+// GL map instances (keyed by container element id).
+// Tracked so we can destroy + reinit if destination or profile changes.
+var glMaps   = {};
+var routeXhrs = {};  // active route fetch XHRs per container id
+
+var sessionTok = uuid4(), debTimer = null, pendXhr = null;
 
 function uuid4(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
 function qs(s){return document.querySelector(s);}
 function qsa(s){return document.querySelectorAll(s);}
 function esc(v){return String(v||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function getParam(name,fallback){var m=location.search.match(new RegExp('[?&]'+name+'=([^&]*)'));return m?decodeURIComponent(m[1].replace(/\+/g,' ')):(fallback||'');}
+function getParam(n,fb){var m=location.search.match(new RegExp('[?&]'+n+'=([^&]*)'));return m?decodeURIComponent(m[1].replace(/\+/g,' ')):(fb||'');}
 
+// ── Storage ────────────────────────────────────────────────────────────
 function loadStore(){
-  try{var raw=localStorage.getItem(STORE_KEY);if(raw)return JSON.parse(raw);}catch(e){}
+  try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
   return{favs:{home:null,work:null},recents:[],turnAlerts:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10};
 }
 function saveStore(){
   try{localStorage.setItem(STORE_KEY,JSON.stringify({
-    favs:S.favs,recents:S.recents,turnAlerts:S.turnAlerts,provider:S.provider,
-    stadiaToken:S.stadiaToken,valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills
+    favs:S.favs,recents:S.recents,turnAlerts:S.turnAlerts,
+    provider:S.provider,stadiaToken:S.stadiaToken,
+    valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills
   }));}catch(e){}
 }
 
+// ── Init ───────────────────────────────────────────────────────────────
 function init(){
-  var stored=loadStore();
-  S.favs=stored.favs||{home:null,work:null};
-  S.recents=stored.recents||[];
-  S.turnAlerts=stored.turnAlerts!==false;
-  S.provider=stored.provider==='stadia'?'stadia':'mapbox';
-  S.stadiaToken=stored.stadiaToken||'';
-  S.valhallaUseRoads=typeof stored.valhallaUseRoads==='number'?stored.valhallaUseRoads:0.25;
-  S.valhallaUseHills=typeof stored.valhallaUseHills==='number'?stored.valhallaUseHills:0.10;
+  var st=loadStore();
+  S.favs=st.favs||{home:null,work:null};
+  S.recents=st.recents||[];
+  S.turnAlerts=st.turnAlerts!==false;
+  S.provider=st.provider==='stadia'?'stadia':'mapbox';
+  S.stadiaToken=st.stadiaToken||'';
+  S.valhallaUseRoads=typeof st.valhallaUseRoads==='number'?st.valhallaUseRoads:0.25;
+  S.valhallaUseHills=typeof st.valhallaUseHills==='number'?st.valhallaUseHills:0.10;
 
-  var rawSettings=getParam('s','');
-  if(rawSettings){
+  var raw=getParam('s','');
+  if(raw){
     try{
-      var inc=JSON.parse(rawSettings);
+      var inc=JSON.parse(raw);
       if(inc.token)       S.token=inc.token;
       if(inc.stadiaToken) S.stadiaToken=inc.stadiaToken;
       if(inc.profile)     S.profile=inc.profile;
-      if(inc.provider==='stadia')S.provider='stadia';
-      else if(inc.provider==='mapbox')S.provider='mapbox';
-      if(typeof inc.turnAlerts!=='undefined')S.turnAlerts=inc.turnAlerts!==false;
-      if(typeof inc.valhallaUseRoads==='number')S.valhallaUseRoads=inc.valhallaUseRoads;
-      if(typeof inc.valhallaUseHills==='number')S.valhallaUseHills=inc.valhallaUseHills;
-      S.navigating=!!inc.navigating;
-      // v0.16c: real GPS coordinates from JS handoff
-      S.currentLat=typeof inc.currentLat==='number'?inc.currentLat:null;
-      S.currentLon=typeof inc.currentLon==='number'?inc.currentLon:null;
-      S.etaMinsHandoff=typeof inc.etaMins==='number'?inc.etaMins:null;
-      if(inc.dest&&inc.dest.lat){S.active={name:inc.dest.name||'',address:'',lat:inc.dest.lat,lon:inc.dest.lon};}
+      if(inc.provider==='stadia')      S.provider='stadia';
+      else if(inc.provider==='mapbox') S.provider='mapbox';
+      if(typeof inc.turnAlerts!=='undefined')       S.turnAlerts=inc.turnAlerts!==false;
+      if(typeof inc.valhallaUseRoads==='number')    S.valhallaUseRoads=inc.valhallaUseRoads;
+      if(typeof inc.valhallaUseHills==='number')    S.valhallaUseHills=inc.valhallaUseHills;
+      S.navigating    = !!inc.navigating;
+      S.currentLat    = typeof inc.currentLat==='number'?inc.currentLat:null;
+      S.currentLon    = typeof inc.currentLon==='number'?inc.currentLon:null;
+      S.etaMinsHandoff= typeof inc.etaMins==='number'?inc.etaMins:null;
+      if(inc.dest&&inc.dest.lat) S.active={name:inc.dest.name||'',address:'',lat:inc.dest.lat,lon:inc.dest.lon};
     }catch(e){}
   }
 
-  var ti=qs('#tokenInput');if(ti)ti.value=S.token;
-  var ta=qs('#turnAlerts');if(ta)ta.checked=S.turnAlerts;
-  var sti=qs('#stadiaTokenInput');if(sti)sti.value=S.stadiaToken;
+  var ti=qs('#tokenInput');     if(ti) ti.value=S.token;
+  var ta=qs('#turnAlerts');     if(ta) ta.checked=S.turnAlerts;
+  var sti=qs('#stadiaTokenInput'); if(sti) sti.value=S.stadiaToken;
   syncSliders();
   renderAll();
   bindAll();
   initNavProgress();
+  // If destination already set (from handoff), show preview immediately
+  if(S.active&&S.active.lat){ renderCurrent(); showRoutePreview(S.active); }
 }
 
-// ── Navigation in progress ─────────────────────────────────────────
-// v0.16c: uses real GPS position (S.currentLat/Lon) if available from handoff.
-function initNavProgress(){
-  if(!S.navigating||!S.active)return;
-  var sec=qs('#navProgressSection');if(!sec)return;
-  sec.style.display='';
-  // ETA from handoff
-  var etaEl=qs('#navProgressEtaInline');
-  if(etaEl&&S.etaMinsHandoff){
-    var arr=new Date(Date.now()+S.etaMinsHandoff*60000);
-    etaEl.textContent='ETA ~'+arr.getHours().toString().padStart(2,'0')+':'+arr.getMinutes().toString().padStart(2,'0');
+// ── GL Map: shared initialiser ─────────────────────────────────────────
+// Replaces any existing GL instance in `containerId`.
+// Fetches route geometry (overview=full, geometries=geojson) so the route
+// line can be drawn. Calls onETA(durationSecs, distanceMetres) when route
+// data arrives, or onETA(null, null) on failure.
+//
+// Design decisions:
+//   maxZoom:15  — street-level without going too tight on long routes
+//   padding:50  — ensures start/end pins aren't clipped by screen edge
+//   Line style: white casing (6px) + blue fill (4px) — standard mapping convention,
+//               clear on both light and satellite basemaps, matches Mapbox defaults
+//   Origin marker: small green dot for GPS position (familiar "you are here")
+//   Dest marker:   default large blue teardrop (mapboxgl.Marker default)
+//
+// Falls back to static destination-only image if typeof mapboxgl === 'undefined'
+// (CDN failed to load, unlikely but handled gracefully).
+function initGLMap(containerId, tok, oLon, oLat, dLon, dLat, onETA) {
+  // Graceful fallback if GL JS CDN failed to load
+  if (typeof mapboxgl === 'undefined') {
+    fallbackStaticMap(containerId, tok, dLon, dLat);
+    if (onETA) onETA(null, null);
+    return;
   }
-  // v0.16c: use real GPS if available, else destination only
-  var tok=currentToken();
-  if(!tok||tok.indexOf('pk.')!==0)return;
-  var mapEl=qs('#navProgressMap');
-  var hasGPS=S.currentLat!==null&&S.currentLon!==null;
-  var pins=hasGPS
-    ?'pin-s+34c759('+S.currentLon+','+S.currentLat+'),pin-l+007AFF('+S.active.lon+','+S.active.lat+')'
-    :'pin-l+007AFF('+S.active.lon+','+S.active.lat+')';
-  var mapUrl='https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/'
-    +pins+'/auto/300x160@2x?padding=40&access_token='+encodeURIComponent(tok);
-  var img=document.createElement('img');img.alt='Route progress map';img.src=mapUrl;
-  img.onload=function(){if(mapEl){mapEl.innerHTML='';mapEl.appendChild(img);}};
-  img.onerror=function(){if(mapEl)mapEl.innerHTML='<span style="font-size:13px;color:#8e8e93;padding:16px">Map unavailable</span>';};
+  var el = qs('#' + containerId);
+  if (!el) return;
+
+  // Destroy existing GL instance and any in-flight route XHR
+  if (glMaps[containerId]) {
+    try { glMaps[containerId].remove(); } catch(e) {}
+    glMaps[containerId] = null;
+  }
+  if (routeXhrs[containerId]) {
+    try { routeXhrs[containerId].abort(); } catch(e) {}
+    routeXhrs[containerId] = null;
+  }
+  // Clear loading placeholder text (GL will inject canvas into the div)
+  el.innerHTML = '<span class="map-loading">Loading map\u2026</span>';
+
+  mapboxgl.accessToken = tok;
+  var map = new mapboxgl.Map({
+    container: el,
+    style: 'mapbox://styles/mapbox/streets-v12',
+    interactive: true,         // pinch-zoom, pan — the whole point
+    attributionControl: false, // saves space on mobile
+    logoPosition: 'bottom-left',
+    center: [dLon, dLat],      // start centred on destination while route loads
+    zoom: 12
+  });
+  glMaps[containerId] = map;
+
+  // Small attribution control (required by Mapbox ToS, just keeps it compact)
+  map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
+
+  // Fetch full route geometry from Mapbox Directions
+  var url = 'https://api.mapbox.com/directions/v5/mapbox/' + S.profile
+    + '/' + oLon.toFixed(6) + ',' + oLat.toFixed(6)
+    + ';' + dLon.toFixed(6) + ',' + dLat.toFixed(6)
+    + '?steps=false&overview=full&geometries=geojson&access_token='
+    + encodeURIComponent(tok);
+
+  var xhr = new XMLHttpRequest();
+  routeXhrs[containerId] = xhr;
+  xhr.open('GET', url);
+  xhr.timeout = 10000;
+
+  xhr.onload = function() {
+    if (routeXhrs[containerId] !== xhr) return; // stale response
+    routeXhrs[containerId] = null;
+    if (xhr.status !== 200) { if (onETA) onETA(null, null); return; }
+    try {
+      var data = JSON.parse(xhr.responseText);
+      var route = data.routes && data.routes[0];
+      if (!route) { if (onETA) onETA(null, null); return; }
+      if (onETA) onETA(route.duration, route.distance);
+
+      var geo    = route.geometry;
+      var coords = geo.coordinates;
+
+      function drawRoute() {
+        // Fit the viewport to the route geometry, not just the two pins.
+        // This is what was missing with static images — the route bounding
+        // box gives correct zoom for the actual path taken, not just A→B crow-fly.
+        var bounds = new mapboxgl.LngLatBounds();
+        coords.forEach(function(c) { bounds.extend(c); });
+        map.fitBounds(bounds, {
+          padding: { top: 50, bottom: 70, left: 40, right: 40 },
+          animate: false,
+          maxZoom: 15  // prevent over-zoom for very short routes
+        });
+
+        // Route: white casing + blue fill (2-layer technique for crisp edges)
+        map.addSource('rt', { type: 'geojson', data: { type: 'Feature', geometry: geo } });
+        map.addLayer({
+          id: 'rt-casing', type: 'line', source: 'rt',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#ffffff', 'line-width': 6 }
+        });
+        map.addLayer({
+          id: 'rt-fill', type: 'line', source: 'rt',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#007AFF', 'line-width': 4 }
+        });
+
+        // Origin marker: small green dot (GPS position / start point)
+        var oEl = document.createElement('div');
+        oEl.style.cssText = 'width:14px;height:14px;border-radius:50%;'
+          + 'background:#34c759;border:2.5px solid #fff;'
+          + 'box-shadow:0 1px 4px rgba(0,0,0,.35)';
+        new mapboxgl.Marker({ element: oEl })
+          .setLngLat([oLon, oLat])
+          .addTo(map);
+
+        // Destination marker: default blue teardrop
+        new mapboxgl.Marker({ color: '#007AFF' })
+          .setLngLat([dLon, dLat])
+          .addTo(map);
+      }
+
+      // Draw immediately if style is loaded, else wait for load event
+      map.isStyleLoaded() ? drawRoute() : map.once('load', drawRoute);
+
+    } catch(e) {
+      console.log('GlanceNav GL route error: ' + e);
+      if (onETA) onETA(null, null);
+    }
+  };
+  xhr.onerror = xhr.ontimeout = function() {
+    if (routeXhrs[containerId] === xhr) routeXhrs[containerId] = null;
+    if (onETA) onETA(null, null);
+  };
+  xhr.send();
 }
 
-// ── Render helpers ─────────────────────────────────────────────────
+// Fallback: simple static image when GL JS CDN is unavailable.
+function fallbackStaticMap(containerId, tok, dLon, dLat) {
+  var el = qs('#' + containerId);
+  if (!el || !tok || tok.indexOf('pk.') !== 0) return;
+  var img = document.createElement('img');
+  img.style.cssText = 'width:100%;display:block';
+  img.alt = 'Destination map';
+  img.src = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/'
+    + 'pin-l+007AFF(' + dLon + ',' + dLat + ')/'
+    + dLon + ',' + dLat + ',14,0/300x240@2x?access_token=' + encodeURIComponent(tok);
+  el.innerHTML = '';
+  el.appendChild(img);
+}
+
+// ── Navigation in progress ─────────────────────────────────────────────
+function initNavProgress() {
+  if (!S.navigating || !S.active) return;
+  var sec = qs('#navProgressSection');
+  if (!sec) return;
+  sec.style.display = '';
+  var tok = currentToken();
+
+  // Show ETA from handoff immediately (before route API responds)
+  var etaEl = qs('#navProgressEta');
+  if (etaEl && S.etaMinsHandoff) {
+    var arr = new Date(Date.now() + S.etaMinsHandoff * 60000);
+    etaEl.textContent = 'ETA ~' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
+  }
+
+  if (!tok || tok.indexOf('pk.') !== 0) return;
+
+  var hasGPS = S.currentLat !== null && S.currentLon !== null;
+  var oLat = hasGPS ? S.currentLat  : FALLBACK_LAT;
+  var oLon = hasGPS ? S.currentLon  : FALLBACK_LON;
+
+  initGLMap('navProgressMap', tok, oLon, oLat,
+    parseFloat(S.active.lon), parseFloat(S.active.lat),
+    function(duration, distance) {
+      // Update ETA banner with actual route duration (more accurate than watch estimate)
+      if (duration !== null && etaEl) {
+        var arr2 = new Date(Date.now() + duration * 1000);
+        etaEl.textContent = 'ETA ~' + pad2(arr2.getHours()) + ':' + pad2(arr2.getMinutes());
+      }
+    }
+  );
+}
+
+// ── Route preview (selected destination) ──────────────────────────────
+// Shown immediately when user selects a destination. ETA card appears at
+// once with "Calculating…" then updates when Directions API responds.
+// Origin: real GPS coords if available from JS handoff, else Auckland CBD.
+function showRoutePreview(dest) {
+  var prevSec = qs('#routePreview');
+  if (!prevSec) return;
+  var tok = currentToken();
+  if (!tok || tok.indexOf('pk.') !== 0) { prevSec.style.display = 'none'; return; }
+
+  // Show container immediately so ETA card and map placeholder are visible
+  prevSec.style.display = '';
+
+  var hasGPS = S.currentLat !== null && S.currentLon !== null;
+  var oLat = hasGPS ? S.currentLat : FALLBACK_LAT;
+  var oLon = hasGPS ? S.currentLon : FALLBACK_LON;
+  var originLabel = hasGPS ? 'your current location' : 'Auckland City Centre';
+
+  // ETA card: show "Calculating…" immediately, not hidden
+  var etaMain = qs('#previewEtaMain');
+  var etaSub  = qs('#previewEtaSub');
+  if (etaMain) etaMain.textContent = 'Calculating\u2026';
+  if (etaSub)  etaSub.textContent  = 'from ' + originLabel;
+
+  initGLMap('previewMapGL', tok, oLon, oLat,
+    parseFloat(dest.lon), parseFloat(dest.lat),
+    function(duration, distance) {
+      if (duration !== null) {
+        var mins    = Math.ceil(duration / 60);
+        var distStr = distance >= 1000
+          ? (distance / 1000).toFixed(1) + ' km'
+          : Math.round(distance) + ' m';
+        if (etaMain) etaMain.textContent = '~' + mins + ' min  \u00b7  ' + distStr;
+        // Arrival clock time
+        var arr = new Date(Date.now() + duration * 1000);
+        if (etaSub) etaSub.textContent = 'from ' + originLabel
+          + '  \u00b7  arr ' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
+      } else {
+        if (etaMain) etaMain.textContent = 'Route unavailable';
+        if (etaSub)  etaSub.textContent  = '';
+      }
+    }
+  );
+}
+
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+// ── Render helpers ─────────────────────────────────────────────────────
 function renderAll(){renderProfile();renderProvider();renderCurrent();renderFavs();renderRecents();updateSaveBtn();}
 function renderProfile(){
   var btns=qsa('[data-prof]');
-  for(var i=0;i<btns.length;i++)btns[i].className='profile-btn'+(btns[i].getAttribute('data-prof')===S.profile?' on':'');
+  for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-prof')===S.profile?' on':'');
 }
 function renderProvider(){
   var btns=qsa('[data-prov]');
-  for(var i=0;i<btns.length;i++)btns[i].className='profile-btn'+(btns[i].getAttribute('data-prov')===S.provider?' on':'');
-  var ss=qs('#stadiaSection'),vs=qs('#valhallaSection');
-  var isS=S.provider==='stadia';
-  if(ss)ss.style.display=isS?'':'none';
-  if(vs)vs.style.display=isS?'':'none';
+  for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-prov')===S.provider?' on':'');
+  var ss=qs('#stadiaSection'),vs=qs('#valhallaSection'),is=S.provider==='stadia';
+  if(ss)ss.style.display=is?'':'none';
+  if(vs)vs.style.display=is?'':'none';
 }
 function renderCurrent(){
   var sec=qs('#currentSection');if(!sec)return;
@@ -464,16 +686,15 @@ function setFavItem(key,valId,rowId){
 }
 function renderRecents(){
   var c=qs('#recentsList');if(!c)return;
-  var recs=S.recents;
-  if(!recs||!recs.length){c.innerHTML='<div class="empty-msg">No recent destinations yet.</div>';return;}
-  var html='',max=Math.min(recs.length,5);
+  if(!S.recents||!S.recents.length){c.innerHTML='<div class="empty-msg">No recent destinations yet.</div>';return;}
+  var html='',max=Math.min(S.recents.length,5);
   for(var i=0;i<max;i++){
-    var d=recs[i];
+    var d=S.recents[i];
     html+='<div class="recent-item" data-rec="'+i+'">'
-         +'<span class="rec-icon">🕐</span>'
-         +'<div><div class="rec-name">'+esc(d.name||'Unnamed')+'</div>'
-         +'<div class="rec-addr">'+esc(d.address||'')+'</div></div>'
-         +'<span class="chev">›</span></div>';
+      +'<span class="rec-icon">🕐</span>'
+      +'<div><div class="rec-name">'+esc(d.name||'Unnamed')+'</div>'
+      +'<div class="rec-addr">'+esc(d.address||'')+'</div></div>'
+      +'<span class="chev">›</span></div>';
   }
   c.innerHTML=html;
   var items=qsa('[data-rec]');
@@ -481,71 +702,12 @@ function renderRecents(){
 }
 function updateSaveBtn(){var btn=qs('#saveBtn');if(btn)btn.disabled=!(S.active&&S.active.lat);}
 function syncSliders(){
-  var urEl=qs('#useRoads'),uhEl=qs('#useHills'),urVal=qs('#useRoadsVal'),uhVal=qs('#useHillsVal');
-  if(urEl){urEl.value=S.valhallaUseRoads;if(urVal)urVal.textContent=S.valhallaUseRoads.toFixed(2);}
-  if(uhEl){uhEl.value=S.valhallaUseHills;if(uhVal)uhVal.textContent=S.valhallaUseHills.toFixed(2);}
+  var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
+  if(ur){ur.value=S.valhallaUseRoads;if(urv)urv.textContent=S.valhallaUseRoads.toFixed(2);}
+  if(uh){uh.value=S.valhallaUseHills;if(uhv)uhv.textContent=S.valhallaUseHills.toFixed(2);}
 }
 
-// ── Route preview (v0.16c: real GPS as origin) ─────────────────────
-// Priority: 1. S.currentLat/currentLon (real GPS from JS handoff)
-//           2. Auckland CBD fallback (FALLBACK_LAT/LON)
-// Uses the real GPS position if it was passed in the showConfiguration handoff,
-// which it will be whenever GPS was started in the current Pebble session.
-// Falls back gracefully for first-ever use before any navigation has started.
-function showRoutePreview(dest){
-  var prevSec=qs('#routePreview');if(!prevSec)return;
-  var tok=currentToken();
-  if(!tok||tok.indexOf('pk.')!==0){prevSec.style.display='none';return;}
-  prevSec.style.display='';
-
-  var hasRealPos=S.currentLat!==null&&S.currentLon!==null;
-  var originLat=hasRealPos?S.currentLat:FALLBACK_LAT;
-  var originLon=hasRealPos?S.currentLon:FALLBACK_LON;
-  var originLabel=hasRealPos?'current location':'Auckland City Centre';
-
-  // Static map with origin pin (green if real GPS, omitted if CBD fallback)
-  // and destination pin (blue). auto-fit viewport.
-  var mapEl=qs('#previewMap');
-  if(mapEl){
-    var pins=hasRealPos
-      ?'pin-s+34c759('+originLon+','+originLat+'),pin-l+007AFF('+dest.lon+','+dest.lat+')'
-      :'pin-l+007AFF('+dest.lon+','+dest.lat+')';
-    var padding=hasRealPos?40:60;
-    var mapUrl='https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/'
-      +pins+'/auto/300x140@2x?padding='+padding+'&access_token='+encodeURIComponent(tok);
-    var img=document.createElement('img');img.alt='Destination map';img.src=mapUrl;
-    img.onload=function(){if(mapEl){mapEl.innerHTML='';mapEl.appendChild(img);}};
-    img.onerror=function(){if(mapEl)mapEl.innerHTML='<span class="preview-map-loading">Map unavailable</span>';};
-  }
-
-  // ETA: Directions call from real GPS (or CBD fallback) to destination
-  var etaRow=qs('#previewEtaRow'),etaTxt=qs('#previewEtaText'),etaSub=qs('#previewEtaSub');
-  if(etaRow)etaRow.style.display='none';
-  if(previewEtaXhr){try{previewEtaXhr.abort();}catch(e){}previewEtaXhr=null;}
-  var origin=originLon.toFixed(6)+','+originLat.toFixed(6);
-  var etaUrl='https://api.mapbox.com/directions/v5/mapbox/'+S.profile+'/'
-    +origin+';'+dest.lon+','+dest.lat
-    +'?steps=false&overview=none&access_token='+encodeURIComponent(tok);
-  var xhr=new XMLHttpRequest();previewEtaXhr=xhr;xhr.open('GET',etaUrl);xhr.timeout=6000;
-  xhr.onload=function(){
-    previewEtaXhr=null;if(xhr.status!==200)return;
-    try{
-      var data=JSON.parse(xhr.responseText);
-      if(data.routes&&data.routes[0]&&data.routes[0].duration){
-        var mins=Math.ceil(data.routes[0].duration/60);
-        var dist=data.routes[0].distance;
-        var distStr=dist>=1000?(dist/1000).toFixed(1)+' km':Math.round(dist)+' m';
-        if(etaTxt)etaTxt.textContent='~'+mins+' min  ·  '+distStr;
-        if(etaSub)etaSub.textContent='from '+originLabel+(hasRealPos?'':' · rough estimate');
-        if(etaRow)etaRow.style.display='';
-      }
-    }catch(e){}
-  };
-  xhr.onerror=xhr.ontimeout=function(){previewEtaXhr=null;};
-  xhr.send();
-}
-
-// ── Search ─────────────────────────────────────────────────────────
+// ── Mapbox Search ──────────────────────────────────────────────────────
 function doSuggest(q){
   var tok=currentToken();
   if(!tok||tok.indexOf('pk.')!==0){setStatus('Open ⚙ Advanced and add your Mapbox token first.',true);return;}
@@ -561,8 +723,7 @@ function doSuggest(q){
   xhr.onload=function(){
     if(xhr!==pendXhr)return;pendXhr=null;
     if(xhr.status<200||xhr.status>=300){setStatus('Search error '+xhr.status+'.',true);return;}
-    try{var data=JSON.parse(xhr.responseText);renderSugs(data.suggestions||[]);}
-    catch(e){setStatus('Could not read results.',true);}
+    try{renderSugs(JSON.parse(xhr.responseText).suggestions||[]);}catch(e){setStatus('Could not read results.',true);}
   };
   xhr.onerror=function(){if(xhr!==pendXhr)return;pendXhr=null;setStatus('Network error.',true);};
   xhr.ontimeout=function(){if(xhr!==pendXhr)return;pendXhr=null;setStatus('Search timed out.',true);};
@@ -579,7 +740,9 @@ function doRetrieve(mapboxId,suggName,suggAddr){
       var data=JSON.parse(xhr.responseText),f=data.features&&data.features[0];
       if(!f||!f.geometry||!f.geometry.coordinates){setStatus('No coordinates found.',true);return;}
       var c=f.geometry.coordinates,p=f.properties||{};
-      selectDest({name:p.name||suggName||'Destination',address:p.full_address||p.place_formatted||p.address||suggAddr||'',lat:String(c[1]),lon:String(c[0]),mapboxId:mapboxId,savedAt:Date.now()},true);
+      selectDest({name:p.name||suggName||'Destination',
+                  address:p.full_address||p.place_formatted||p.address||suggAddr||'',
+                  lat:String(c[1]),lon:String(c[0]),mapboxId:mapboxId,savedAt:Date.now()},true);
       sessionTok=uuid4();setStatus('');
       var si=qs('#search');if(si)si.value='';
     }catch(e){setStatus('Could not read destination details.',true);}
@@ -596,7 +759,8 @@ function renderSugs(sugs){
     var s=sugs[i],ic=FT_ICON[s.feature_type]||'📍',addr=s.full_address||s.place_formatted||s.address||'';
     html+='<div class="suggestion" data-id="'+esc(s.mapbox_id||'')+'" data-name="'+esc(s.name||'')+'" data-addr="'+esc(addr)+'">'
       +'<span class="sug-icon">'+ic+'</span>'
-      +'<div><div class="sug-name">'+esc(s.name||'Unnamed')+'</div><div class="sug-addr">'+esc(addr)+'</div></div></div>';
+      +'<div><div class="sug-name">'+esc(s.name||'Unnamed')+'</div>'
+      +'<div class="sug-addr">'+esc(addr)+'</div></div></div>';
   }
   c.innerHTML=html;
   var items=qsa('.suggestion');
@@ -606,7 +770,7 @@ function clearSugs(){var c=qs('#suggestions');if(c)c.innerHTML='';}
 function setStatus(msg,isErr){var el=qs('#srchStatus');if(!el)return;el.textContent=msg||'';el.className='srch-status'+(isErr?' err':'');}
 function currentToken(){var ti=qs('#tokenInput');return(ti?ti.value.trim():'')||S.token;}
 
-// ── Destination selection ──────────────────────────────────────────
+// ── Destination selection ──────────────────────────────────────────────
 function selectDest(dest,addRecent){
   S.active=dest;
   if(addRecent){
@@ -628,10 +792,10 @@ function saveFav(key){
   if(!S.active){alert('Choose a destination first.');return;}
   S.favs[key]=S.active;saveStore();renderFavs();
   var btn=qs(key==='home'?'#saveHome':'#saveWork');
-  if(btn){var orig=btn.textContent;btn.textContent='\u2713 Saved!';setTimeout(function(){btn.textContent=orig;},1600);}
+  if(btn){var o=btn.textContent;btn.textContent='\u2713 Saved!';setTimeout(function(){btn.textContent=o;},1600);}
 }
 
-// ── Save / Cancel ──────────────────────────────────────────────────
+// ── Save / Cancel ──────────────────────────────────────────────────────
 function doSave(){
   if(!S.active||!S.active.lat){alert('Choose a destination first.');return;}
   var tok=currentToken();
@@ -640,35 +804,39 @@ function doSave(){
     alert('A Mapbox public token (pk.) is required.\nOpen \u2699 Advanced to add one.');return;
   }
   if(S.provider==='stadia'&&!S.stadiaToken){alert('Add your Stadia API key above,\nor switch back to Mapbox.');return;}
-  var urEl=qs('#useRoads'),uhEl=qs('#useHills');
-  if(urEl)S.valhallaUseRoads=parseFloat(urEl.value)||0.25;
-  if(uhEl)S.valhallaUseHills=parseFloat(uhEl.value)||0.10;
+  var ur=qs('#useRoads'),uh=qs('#useHills');
+  if(ur) S.valhallaUseRoads=parseFloat(ur.value)||0.25;
+  if(uh) S.valhallaUseHills=parseFloat(uh.value)||0.10;
   var result={
     mapboxToken:tok,stadiaToken:S.stadiaToken||'',provider:S.provider,profile:S.profile,
     destName:S.active.name||'',destLat:S.active.lat,destLon:S.active.lon,
     turnAlerts:S.turnAlerts,
-    // v0.16b FIX: always include favs so webviewclosed doesn't null them
-    favHome:S.favs.home, favWork:S.favs.work,
+    favHome:S.favs.home,  // always included to prevent webviewclosed from nulling them
+    favWork:S.favs.work,
     valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills
   };
   document.location=getParam('return_to','pebblejs://close#')+encodeURIComponent(JSON.stringify(result));
 }
 function doCancel(){document.location=getParam('return_to','pebblejs://close#');}
 
-// ── Event binding ──────────────────────────────────────────────────
+// ── Event binding ──────────────────────────────────────────────────────
 function bindAll(){
   var si=qs('#search');
   if(si)si.addEventListener('input',function(){clearTimeout(debTimer);var q=this.value;if(!q.trim()){clearSugs();setStatus('');return;}debTimer=setTimeout(function(){doSuggest(q);},350);});
 
-  var pb=qsa('[data-prof]');for(var i=0;i<pb.length;i++){(function(b){b.addEventListener('click',function(){S.profile=b.getAttribute('data-prof');renderProfile();});})(pb[i]);}
-  var provB=qsa('[data-prov]');for(var p=0;p<provB.length;p++){(function(b){b.addEventListener('click',function(){S.provider=b.getAttribute('data-prov');var sti=qs('#stadiaTokenInput');if(sti)S.stadiaToken=sti.value.trim();saveStore();renderProvider();});})(provB[p]);}
+  var pb=qsa('[data-prof]');
+  for(var i=0;i<pb.length;i++){(function(b){b.addEventListener('click',function(){S.profile=b.getAttribute('data-prof');renderProfile();// Refresh preview with new profile if destination is set
+    if(S.active&&S.active.lat)showRoutePreview(S.active);});})(pb[i]);}
+
+  var provB=qsa('[data-prov]');
+  for(var p=0;p<provB.length;p++){(function(b){b.addEventListener('click',function(){S.provider=b.getAttribute('data-prov');var sti=qs('#stadiaTokenInput');if(sti)S.stadiaToken=sti.value.trim();saveStore();renderProvider();});})(provB[p]);}
 
   var stadiaInput=qs('#stadiaTokenInput');
   if(stadiaInput){stadiaInput.addEventListener('input',function(){S.stadiaToken=this.value.trim();});stadiaInput.addEventListener('change',function(){S.stadiaToken=this.value.trim();saveStore();});}
 
-  var urEl=qs('#useRoads'),uhEl=qs('#useHills'),urVal=qs('#useRoadsVal'),uhVal=qs('#useHillsVal');
-  if(urEl)urEl.addEventListener('input',function(){S.valhallaUseRoads=parseFloat(this.value)||0.25;if(urVal)urVal.textContent=S.valhallaUseRoads.toFixed(2);});
-  if(uhEl)uhEl.addEventListener('input',function(){S.valhallaUseHills=parseFloat(this.value)||0.10;if(uhVal)uhVal.textContent=S.valhallaUseHills.toFixed(2);});
+  var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
+  if(ur)ur.addEventListener('input',function(){S.valhallaUseRoads=parseFloat(this.value)||0.25;if(urv)urv.textContent=S.valhallaUseRoads.toFixed(2);});
+  if(uh)uh.addEventListener('input',function(){S.valhallaUseHills=parseFloat(this.value)||0.10;if(uhv)uhv.textContent=S.valhallaUseHills.toFixed(2);});
 
   var ph=qs('#pickHome');if(ph)ph.addEventListener('click',function(){if(S.favs.home)selectDest(S.favs.home,false);});
   var pw=qs('#pickWork');if(pw)pw.addEventListener('click',function(){if(S.favs.work)selectDest(S.favs.work,false);});
@@ -676,12 +844,9 @@ function bindAll(){
   var sw=qs('#saveWork');if(sw)sw.addEventListener('click',function(){saveFav('work');});
   var ta=qs('#turnAlerts');if(ta)ta.addEventListener('change',function(){S.turnAlerts=this.checked;saveStore();});
   var at=qs('#advToggle'),ab=qs('#advBody'),ar=qs('#advArrow');
-  if(at&&ab)at.addEventListener('click',function(){var open=ab.classList.toggle('open');if(ar)ar.textContent=open?'\u2039':'\u203a';});
+  if(at&&ab)at.addEventListener('click',function(){var o=ab.classList.toggle('open');if(ar)ar.textContent=o?'\u2039':'\u203a';});
   var sb=qs('#saveBtn');if(sb)sb.addEventListener('click',doSave);
   var cb=qs('#cancelBtn');if(cb)cb.addEventListener('click',doCancel);
-
-  // If active destination exists at load time, show preview immediately
-  if(S.active&&S.active.lat){renderCurrent();showRoutePreview(S.active);}
 }
 
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
