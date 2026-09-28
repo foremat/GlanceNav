@@ -265,6 +265,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 
 <div id="valhallaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Valhalla Cycling Options <span style="font-size:10px;color:#8e8e93;font-weight:400;text-transform:none;letter-spacing:0">(testing)</span></div>
+  <div style="padding:4px 16px 2px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73;margin-bottom:6px">Bike type</div>
+    <div class="profile-row" style="padding:0 0 12px">
+      <button class="profile-btn" data-biketype="Road">🚴 Road</button>
+      <button class="profile-btn" data-biketype="Hybrid">🚲 Hybrid</button>
+      <button class="profile-btn" data-biketype="Cross">🤜 Gravel</button>
+      <button class="profile-btn" data-biketype="Mountain">🚵 MTB</button>
+    </div>
+    <div style="font-size:11px;color:#8e8e93;margin-bottom:10px;line-height:1.4">
+      Road 25 km/h · Hybrid 18 km/h · Gravel 20 km/h · MTB 16 km/h. Sets routing speed, surface preference, and path weighting.
+    </div>
+  </div>
   <div class="slider-row">
     <div class="slider-label-row"><span class="slider-label">Road preference</span><span class="slider-value" id="useRoadsVal">0.25</span></div>
     <input type="range" id="useRoads" min="0" max="1" step="0.05" value="0.25">
@@ -315,7 +327,7 @@ var FALLBACK_LON = 174.7633;
 var S = {
   token:'', stadiaToken:'', provider:'mapbox', profile:'cycling',
   active:null, favs:{home:null,work:null}, recents:[], turnAlerts:true,
-  valhallaUseRoads:0.25, valhallaUseHills:0.10,
+  valhallaUseRoads:0.25, valhallaUseHills:0.10, valhallaBicycleType:'Hybrid',
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
 
@@ -331,13 +343,14 @@ function pad2(n){return n<10?'0'+n:''+n;}
 
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
-  return{favs:{home:null,work:null},recents:[],turnAlerts:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10};
+  return{favs:{home:null,work:null},recents:[],turnAlerts:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
 }
 function saveStore(){
   try{localStorage.setItem(STORE_KEY,JSON.stringify({
     favs:S.favs,recents:S.recents,turnAlerts:S.turnAlerts,
     provider:S.provider,stadiaToken:S.stadiaToken,
-    valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills
+    valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
+    valhallaBicycleType:S.valhallaBicycleType
   }));}catch(e){}
 }
 
@@ -350,6 +363,7 @@ function init(){
   S.stadiaToken=st.stadiaToken||'';
   S.valhallaUseRoads=typeof st.valhallaUseRoads==='number'?st.valhallaUseRoads:0.25;
   S.valhallaUseHills=typeof st.valhallaUseHills==='number'?st.valhallaUseHills:0.10;
+  S.valhallaBicycleType=validBikeType(st.valhallaBicycleType)?st.valhallaBicycleType:'Hybrid';
 
   var raw=getParam('s','');
   if(raw){
@@ -363,6 +377,7 @@ function init(){
       if(typeof inc.turnAlerts!=='undefined')    S.turnAlerts=inc.turnAlerts!==false;
       if(typeof inc.valhallaUseRoads==='number') S.valhallaUseRoads=inc.valhallaUseRoads;
       if(typeof inc.valhallaUseHills==='number') S.valhallaUseHills=inc.valhallaUseHills;
+      if(validBikeType(inc.valhallaBicycleType)) S.valhallaBicycleType=inc.valhallaBicycleType;
       S.navigating     = !!inc.navigating;
       S.currentLat     = typeof inc.currentLat==='number'  ? inc.currentLat  : null;
       S.currentLon     = typeof inc.currentLon==='number'  ? inc.currentLon  : null;
@@ -482,6 +497,7 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
   var costingOptions = {};
   if (costing === 'bicycle') {
     costingOptions.bicycle = {
+      bicycle_type: S.valhallaBicycleType || 'Hybrid',
       use_roads: S.valhallaUseRoads,
       use_hills: S.valhallaUseHills
     };
@@ -700,8 +716,14 @@ function showRoutePreview(dest) {
   );
 }
 
+// ── Bike type validator ────────────────────────────────────────────────
+function validBikeType(t){return t==='Road'||t==='Hybrid'||t==='Cross'||t==='Mountain';}
 // ── Render helpers ─────────────────────────────────────────────────────
-function renderAll(){renderProfile();renderProvider();renderCurrent();renderFavs();renderRecents();updateSaveBtn();}
+function renderAll(){renderProfile();renderProvider();renderBikeType();renderCurrent();renderFavs();renderRecents();updateSaveBtn();}
+function renderBikeType(){
+  var btns=qsa('[data-biketype]');
+  for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-biketype')===S.valhallaBicycleType?' on':'');
+}
 function renderProfile(){
   var btns=qsa('[data-prof]');
   for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-prof')===S.profile?' on':'');
@@ -857,7 +879,8 @@ function doSave(){
     turnAlerts:S.turnAlerts,
     favHome:S.favs.home,
     favWork:S.favs.work,
-    valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills
+    valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
+    valhallaBicycleType:S.valhallaBicycleType
   };
   document.location=getParam('return_to','pebblejs://close#')+encodeURIComponent(JSON.stringify(result));
 }
@@ -881,6 +904,13 @@ function bindAll(){
     saveStore();renderProvider();
     if(S.active&&S.active.lat) showRoutePreview(S.active);
   });})(provB[p]);}
+
+  var btB=qsa('[data-biketype]');
+  for(var bt=0;bt<btB.length;bt++){(function(b){b.addEventListener('click',function(){
+    S.valhallaBicycleType=b.getAttribute('data-biketype');
+    saveStore();renderBikeType();
+    if(S.active&&S.active.lat&&S.provider==='stadia') showRoutePreview(S.active);
+  });})(btB[bt]);}
 
   var stadiaInput=qs('#stadiaTokenInput');
   if(stadiaInput){
