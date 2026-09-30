@@ -882,9 +882,17 @@ function doSave(){
     valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
     valhallaBicycleType:S.valhallaBicycleType
   };
-  document.location=getParam('return_to','pebblejs://close#')+encodeURIComponent(JSON.stringify(result));
+  // v0.17.2 security: validate return_to scheme — must be pebblejs:// to prevent open redirect
+  var returnTo=getParam('return_to','pebblejs://close#');
+  if(returnTo.indexOf('pebblejs://')!==0)returnTo='pebblejs://close#';
+  document.location=returnTo+encodeURIComponent(JSON.stringify(result));
 }
-function doCancel(){document.location=getParam('return_to','pebblejs://close#');}
+function doCancel(){
+  // v0.17.2 security: validate return_to scheme
+  var rt=getParam('return_to','pebblejs://close#');
+  if(rt.indexOf('pebblejs://')!==0)rt='pebblejs://close#';
+  document.location=rt;
+}
 
 // ── Event binding ──────────────────────────────────────────────────────
 function bindAll(){
