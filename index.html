@@ -6,7 +6,9 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.3 config page
+<!-- GlanceNav v0.17.4 config page
+     Changes from v0.17.3:
+     • Junction view toggle — settings page control for schematic road underlay
      Changes from v0.17.2 / v0.16h:
      • Custom favourites UI — add/delete/navigate to custom saved places
      • Alternative routes — Valhalla preview shows primary + alternate polylines
@@ -288,8 +290,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <input type="checkbox" id="turnAlerts" checked>
     <span class="toggle-track"></span>
   </label>
+  <label class="toggle-row" for="junctionView" style="border-top:1px solid #f2f2f7">
+    <span class="toggle-label">Junction view</span>
+    <input type="checkbox" id="junctionView" checked>
+    <span class="toggle-track"></span>
+  </label>
 </div>
-<p class="sec-hint">Colour flash and vibration before each turn. The close-range vibration always fires.</p>
+<p class="sec-hint">Turn alerts: colour flash and vibration before each turn. The close-range vibration always fires.</p>
+<p class="sec-hint" style="margin-top:0">Junction view: shows a schematic road diagram behind the turn arrow at 150 m, helping distinguish forks and slight turns from straight-ahead roads.</p>
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
   <span class="adv-arrow" id="advArrow">›</span>
@@ -315,7 +323,7 @@ var S = {
   token:'', stadiaToken:'', provider:'mapbox', profile:'cycling',
   active:null, favs:{home:null,work:null},
   favCustom: [],   // v0.17.3: custom saved places
-  recents:[], turnAlerts:true,
+  recents:[], turnAlerts:true, junctionView:true,  // v0.17.4
   valhallaUseRoads:0.25, valhallaUseHills:0.10, valhallaBicycleType:'Hybrid',
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
@@ -341,13 +349,13 @@ function pad2(n){return n<10?'0'+n:''+n;}
 
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
-  return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
+  return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,junctionView:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
 }
 function saveStore(){
   try{localStorage.setItem(STORE_KEY,JSON.stringify({
     favs:S.favs,
     favCustom:S.favCustom,  // v0.17.3
-    recents:S.recents,turnAlerts:S.turnAlerts,
+    recents:S.recents,turnAlerts:S.turnAlerts,junctionView:S.junctionView,  // v0.17.4
     provider:S.provider,stadiaToken:S.stadiaToken,
     valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
     valhallaBicycleType:S.valhallaBicycleType
@@ -375,6 +383,7 @@ function init(){
       if(inc.provider==='stadia')      S.provider='stadia';
       else if(inc.provider==='mapbox') S.provider='mapbox';
       if(typeof inc.turnAlerts!=='undefined')    S.turnAlerts=inc.turnAlerts!==false;
+      if(typeof inc.junctionView!=='undefined') S.junctionView=inc.junctionView!==false;  // v0.17.4
       if(typeof inc.valhallaUseRoads==='number') S.valhallaUseRoads=inc.valhallaUseRoads;
       if(typeof inc.valhallaUseHills==='number') S.valhallaUseHills=inc.valhallaUseHills;
       if(validBikeType(inc.valhallaBicycleType)) S.valhallaBicycleType=inc.valhallaBicycleType;
@@ -389,6 +398,7 @@ function init(){
   }
   var ti=qs('#tokenInput');        if(ti)  ti.value=S.token;
   var ta=qs('#turnAlerts');        if(ta)  ta.checked=S.turnAlerts;
+  var jvi=qs('#junctionView');     if(jvi) jvi.checked=S.junctionView;  // v0.17.4
   var sti=qs('#stadiaTokenInput'); if(sti) sti.value=S.stadiaToken;
   syncSliders();
   renderAll();
@@ -973,6 +983,7 @@ function doSave(){
     mapboxToken:tok,stadiaToken:S.stadiaToken||'',provider:S.provider,profile:S.profile,
     destName:S.active.name||'',destLat:S.active.lat,destLon:S.active.lon,
     turnAlerts:S.turnAlerts,
+    junctionView:S.junctionView,  // v0.17.4
     favHome:S.favs.home,
     favWork:S.favs.work,
     favCustom:S.favCustom,  // v0.17.3: include custom favs in save result
@@ -1043,6 +1054,7 @@ function bindAll(){
   var acf=qs('#addCustomFavBtn');if(acf)acf.addEventListener('click',function(){addCustomFav();});
 
   var ta=qs('#turnAlerts');if(ta)ta.addEventListener('change',function(){S.turnAlerts=this.checked;saveStore();});
+  var jv=qs('#junctionView');if(jv)jv.addEventListener('change',function(){S.junctionView=this.checked;saveStore();});  // v0.17.4
   var at=qs('#advToggle'),ab=qs('#advBody'),ar=qs('#advArrow');
   if(at&&ab)at.addEventListener('click',function(){var o=ab.classList.toggle('open');if(ar)ar.textContent=o?'\u2039':'\u203a';});
   var sb=qs('#saveBtn');if(sb)sb.addEventListener('click',doSave);
