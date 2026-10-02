@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,12 +6,15 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-
-<!-- Mapbox GL JS v2.15 — used for map tiles. Route geometry fetched
-     separately via provider-aware dispatcher (Mapbox or Stadia/Valhalla). -->
+<!-- GlanceNav v0.17.3 config page
+     Changes from v0.17.2 / v0.16h:
+     • Custom favourites UI — add/delete/navigate to custom saved places
+     • Alternative routes — Valhalla preview shows primary + alternate polylines
+     • Preview debounce unified — bike type changes share same 600ms timer as sliders
+     • favCustom read from handoff and saved in doSave() result
+-->
 <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet'>
 <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
-
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;-webkit-text-size-adjust:100%;padding-bottom:88px}
@@ -20,40 +22,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .hdr-icon{font-size:26px;line-height:1;flex-shrink:0}
 .hdr-title{font-size:19px;font-weight:700;letter-spacing:-.3px}
 .hdr-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:2px}
-
 /* ── Navigation in progress ─────────────────────────────────────────── */
 .nav-banner{background:#1a6b31;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
 .nav-dot{width:10px;height:10px;border-radius:50%;background:#4cd964;flex-shrink:0;box-shadow:0 0 0 3px rgba(76,217,100,.3)}
-
 /* ── GL map wrapper ──────────────────────────────────────────────────── */
-/* v0.16h: z-index removed from .map-loading.
-   The gl-inner div (position:absolute) comes AFTER map-loading in DOM source
-   order, so without z-index it stacks naturally above the loading text.
-   Previously z-index:1 on map-loading caused it to render above the GL canvas
-   even after tiles loaded (loading text always visible on top of map). */
 .gl-map-wrap{position:relative;background:#dce6f0;overflow:hidden}
 .gl-map-wrap .map-loading{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   font-size:13px;color:#8e8e93;pointer-events:none
-  /* z-index intentionally omitted — gl-inner (later in DOM) stacks above */
 }
 .gl-inner{position:absolute;top:0;left:0;width:100%;height:100%}
 .gl-inner .mapboxgl-map{position:absolute!important;top:0;left:0;width:100%!important;height:100%!important}
-
 /* ── Tap-to-interact overlay ─────────────────────────────────────────── */
 .map-tap-overlay{position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(0,0,0,0.06);-webkit-tap-highlight-color:transparent}
 .map-tap-label{background:rgba(0,0,0,0.50);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;font-weight:600;letter-spacing:0.1px;pointer-events:none;-webkit-user-select:none;user-select:none}
-
 /* ── ETA card ────────────────────────────────────────────────────────── */
 .eta-card{padding:14px 16px 12px;border-top:1px solid #e5e5ea;background:#f8fff9}
 .eta-card-main{font-size:22px;font-weight:700;color:#111;line-height:1.2}
 .eta-card-sub{font-size:13px;color:#8e8e93;margin-top:4px}
-
 /* ── Provider badge ─────────────────────────────────────────────────── */
 .provider-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:8px;vertical-align:middle;letter-spacing:0.2px}
 .provider-badge.stadia{background:#5b4bdb;color:#fff}
 .provider-badge.mapbox{background:#007AFF;color:#fff}
-
 /* ── Search ─────────────────────────────────────────────────────────── */
 .search-bar{background:#fff;padding:10px 12px;border-bottom:1px solid #e5e5ea;position:sticky;top:0;z-index:20}
 .search-wrap{position:relative}
@@ -71,12 +61,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .srch-status{padding:8px 16px;font-size:13px;color:#666;background:#fff;border-bottom:1px solid #e5e5ea}
 .srch-status:empty{display:none}
 .srch-status.err{color:#c00000}
-
 /* ── Sections ───────────────────────────────────────────────────────── */
 .section{background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:20px}
 .sec-hdr{padding:12px 16px 5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73}
 .sec-hint{font-size:13px;color:#6c6c70;padding:6px 16px 14px;line-height:1.4}
-
 /* ── Selected destination ───────────────────────────────────────────── */
 #currentSection{border-left:4px solid #007AFF !important;background:#fff}
 .dest-card{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;background:#f0f7ff}
@@ -86,7 +74,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .dest-fav-row{display:flex;gap:8px;padding:0 16px 14px;background:#f0f7ff}
 .dest-fav-btn{flex:1;padding:10px 6px;font-size:14px;font-weight:600;border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;background:#fff;cursor:pointer}
 .dest-fav-btn:active{background:#eef5ff}
-
 /* ── Quick pick ─────────────────────────────────────────────────────── */
 .pick-item{padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:62px;-webkit-tap-highlight-color:rgba(0,0,0,.04)}
 .pick-item:last-child{border-bottom:none}
@@ -97,7 +84,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .pick-value{font-size:13px;color:#555;margin-top:2px}
 .pick-empty{font-size:13px;color:#aaa;margin-top:2px;font-style:italic}
 .chev{margin-left:auto;font-size:20px;color:#c7c7cc;padding-left:6px;flex-shrink:0}
-
+/* ── Custom favourites ──────────────────────────────────────────────── */
+.custom-item{padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:54px;-webkit-tap-highlight-color:rgba(0,0,0,.04)}
+.custom-item:last-child{border-bottom:none}
+.custom-item:active{background:#f5f5f5}
+.custom-item-label{font-size:15px;font-weight:600;color:#111;flex:1;min-width:0}
+.custom-item-addr{font-size:12px;color:#8e8e93;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.custom-del-btn{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:#ff3b30;color:#fff;border:none;font-size:16px;line-height:28px;text-align:center;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.custom-del-btn:active{opacity:.7}
+.custom-add-btn{display:flex;align-items:center;gap:8px;padding:14px 16px;font-size:15px;font-weight:600;color:#007AFF;background:none;border:none;cursor:pointer;width:100%;border-top:1px solid #f2f2f7}
+.custom-add-btn:active{opacity:.7}
+.custom-add-btn:disabled{opacity:.35;cursor:default}
+.custom-empty{padding:12px 16px;font-size:13px;color:#aaa;font-style:italic}
 /* ── Recents ────────────────────────────────────────────────────────── */
 .recent-item{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px}
 .recent-item:last-child{border-bottom:none}
@@ -106,7 +104,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .rec-name{font-size:15px;font-weight:600;color:#111}
 .rec-addr{font-size:12px;color:#8e8e93;margin-top:2px}
 .empty-msg{padding:14px 16px;font-size:14px;color:#aaa;font-style:italic}
-
 /* ── Segmented controls ─────────────────────────────────────────────── */
 .profile-row{display:flex;gap:0;padding:12px 16px 16px}
 .profile-btn{flex:1;padding:12px 4px;font-size:13px;font-weight:600;border:1.5px solid #e5e5ea;background:#f2f2f7;cursor:pointer;color:#3c3c43;text-align:center;-webkit-tap-highlight-color:transparent;transition:background .12s,color .12s}
@@ -114,7 +111,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .profile-btn:last-child{border-radius:0 10px 10px 0}
 .profile-btn:not(:first-child){border-left:none}
 .profile-btn.on{background:#007AFF;border-color:#007AFF;color:#fff;position:relative;z-index:1}
-
 /* ── Toggle ──────────────────────────────────────────────────────────── */
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px}
 .toggle-row:last-child{border-bottom:none}
@@ -124,7 +120,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .toggle-track::after{content:'';position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
 .toggle-row input:checked + .toggle-track{background:#34c759}
 .toggle-row input:checked + .toggle-track::after{transform:translateX(20px)}
-
 /* ── Stadia + Valhalla ───────────────────────────────────────────────── */
 .stadia-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#5b4bdb;border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:middle}
 .slider-row{padding:12px 16px;border-bottom:1px solid #f2f2f7}
@@ -135,7 +130,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:#e5e5ea;outline:none}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#007AFF;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .slider-ends{display:flex;justify-content:space-between;font-size:11px;color:#8e8e93;margin-top:4px}
-
 /* ── Advanced ────────────────────────────────────────────────────────── */
 .adv-toggle{padding:14px 16px;font-size:15px;color:#007AFF;cursor:pointer;display:flex;align-items:center;gap:8px;background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:20px}
 .adv-arrow{margin-left:auto;font-size:22px;color:#c7c7cc}
@@ -145,7 +139,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 .token-input{width:100%;padding:12px;font-size:13px;font-family:'Courier New',monospace;border:1.5px solid #e5e5ea;border-radius:10px;background:#f2f2f7;color:#111;-webkit-appearance:none;outline:none}
 .token-input:focus{border-color:#007AFF;background:#fff}
 .adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}
-
 /* ── Save bar ────────────────────────────────────────────────────────── */
 .end-space{height:16px}
 .save-bar{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:10px 16px env(safe-area-inset-bottom,12px);background:rgba(242,242,247,.96);border-top:1px solid #e5e5ea;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
@@ -164,7 +157,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div class="hdr-sub">Pebble navigation settings</div>
   </div>
 </header>
-
 <div id="navProgressSection" style="display:none">
   <div class="nav-banner">
     <div class="nav-dot"></div>
@@ -176,7 +168,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div id="nav-gl-inner" class="gl-inner"></div>
   </div>
 </div>
-
 <div class="search-bar">
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -187,7 +178,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 </div>
 <div id="suggestions" class="suggestions"></div>
 <div id="srchStatus" class="srch-status"></div>
-
 <div id="currentSection" class="section" style="display:none">
   <div class="sec-hdr">Selected Destination</div>
   <div class="dest-card">
@@ -200,6 +190,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   <div class="dest-fav-row">
     <button class="dest-fav-btn" id="saveHome">🏠 Save as Home</button>
     <button class="dest-fav-btn" id="saveWork">💼 Save as Work</button>
+    <button class="dest-fav-btn" id="saveCustom">📍 Save as Custom</button>
   </div>
   <div id="routePreview" style="display:none">
     <div class="eta-card">
@@ -212,7 +203,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     </div>
   </div>
 </div>
-
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Quick Destinations</div>
   <div class="pick-item disabled" id="pickHome">
@@ -225,13 +215,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div><div class="pick-label">Work</div><div id="workVal" class="pick-empty">Not set — search to add</div></div>
     <span class="chev">›</span>
   </div>
+  <!-- v0.17.3: custom favourites section -->
+  <div id="customFavsSection" style="border-top:1px solid #f2f2f7">
+    <div style="padding:10px 16px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73">Custom Places</div>
+    <div id="customFavsList"></div>
+    <button class="custom-add-btn" id="addCustomFavBtn" disabled>
+      <span style="font-size:18px;line-height:1">＋</span> Add current destination
+    </button>
+  </div>
 </div>
-
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Recent</div>
   <div id="recentsList"></div>
 </div>
-
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Route Profile</div>
   <div class="profile-row">
@@ -240,7 +236,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <button class="profile-btn" data-prof="driving">🚗 Driving</button>
   </div>
 </div>
-
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Routing Provider</div>
   <div class="profile-row">
@@ -249,7 +244,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </div>
 </div>
 <p class="sec-hint">Stadia uses Valhalla routing — better cycling path preference and roundabout detection for NZ. Search always uses Mapbox.</p>
-
 <div id="stadiaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Stadia API Key</div>
   <div style="padding:0 16px 16px">
@@ -262,7 +256,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     </div>
   </div>
 </div>
-
 <div id="valhallaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Valhalla Cycling Options <span style="font-size:10px;color:#8e8e93;font-weight:400;text-transform:none;letter-spacing:0">(testing)</span></div>
   <div style="padding:4px 16px 2px">
@@ -288,7 +281,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div class="slider-ends"><span>Avoid hills</span><span>Welcome hills</span></div>
   </div>
 </div>
-
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Preferences</div>
   <label class="toggle-row" for="turnAlerts">
@@ -298,7 +290,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </label>
 </div>
 <p class="sec-hint">Colour flash and vibration before each turn. The close-range vibration always fires.</p>
-
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
   <span class="adv-arrow" id="advArrow">›</span>
@@ -309,30 +300,37 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
          placeholder="pk.eyJ..." autocapitalize="none" autocorrect="off" spellcheck="false">
   <div class="adv-hint">Required for map tiles and search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
 </div>
-
 <div class="end-space"></div>
 <div class="save-bar">
   <button class="btn-cancel" id="cancelBtn">Cancel</button>
   <button class="btn-save" id="saveBtn" disabled>Set on watch</button>
 </div>
-
 <script>
 (function () {
 'use strict';
-
 var STORE_KEY    = 'glancenav-config-v1';
 var FALLBACK_LAT = -36.8485;
 var FALLBACK_LON = 174.7633;
-
 var S = {
   token:'', stadiaToken:'', provider:'mapbox', profile:'cycling',
-  active:null, favs:{home:null,work:null}, recents:[], turnAlerts:true,
+  active:null, favs:{home:null,work:null},
+  favCustom: [],   // v0.17.3: custom saved places
+  recents:[], turnAlerts:true,
   valhallaUseRoads:0.25, valhallaUseHills:0.10, valhallaBicycleType:'Hybrid',
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
-
 var glInstances = {}, routeXhrs = {};
 var sessionTok = uuid4(), debTimer = null, pendXhr = null;
+// v0.17.3: unified preview debounce timer (shared by sliders AND bike type)
+var previewTimer = null;
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  if (S.active && S.active.lat && S.provider === 'stadia') {
+    previewTimer = setTimeout(function() { showRoutePreview(S.active); }, 600);
+  } else if (S.active && S.active.lat) {
+    previewTimer = setTimeout(function() { showRoutePreview(S.active); }, 600);
+  }
+}
 
 function uuid4(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
 function qs(s){return document.querySelector(s);}
@@ -343,11 +341,13 @@ function pad2(n){return n<10?'0'+n:''+n;}
 
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
-  return{favs:{home:null,work:null},recents:[],turnAlerts:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
+  return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
 }
 function saveStore(){
   try{localStorage.setItem(STORE_KEY,JSON.stringify({
-    favs:S.favs,recents:S.recents,turnAlerts:S.turnAlerts,
+    favs:S.favs,
+    favCustom:S.favCustom,  // v0.17.3
+    recents:S.recents,turnAlerts:S.turnAlerts,
     provider:S.provider,stadiaToken:S.stadiaToken,
     valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
     valhallaBicycleType:S.valhallaBicycleType
@@ -357,6 +357,7 @@ function saveStore(){
 function init(){
   var st=loadStore();
   S.favs=st.favs||{home:null,work:null};
+  S.favCustom=Array.isArray(st.favCustom)?st.favCustom:[];
   S.recents=st.recents||[];
   S.turnAlerts=st.turnAlerts!==false;
   S.provider=st.provider==='stadia'?'stadia':'mapbox';
@@ -364,7 +365,6 @@ function init(){
   S.valhallaUseRoads=typeof st.valhallaUseRoads==='number'?st.valhallaUseRoads:0.25;
   S.valhallaUseHills=typeof st.valhallaUseHills==='number'?st.valhallaUseHills:0.10;
   S.valhallaBicycleType=validBikeType(st.valhallaBicycleType)?st.valhallaBicycleType:'Hybrid';
-
   var raw=getParam('s','');
   if(raw){
     try{
@@ -378,6 +378,8 @@ function init(){
       if(typeof inc.valhallaUseRoads==='number') S.valhallaUseRoads=inc.valhallaUseRoads;
       if(typeof inc.valhallaUseHills==='number') S.valhallaUseHills=inc.valhallaUseHills;
       if(validBikeType(inc.valhallaBicycleType)) S.valhallaBicycleType=inc.valhallaBicycleType;
+      // v0.17.3: read favCustom from handoff (passed by PebbleKit JS showConfiguration)
+      if(Array.isArray(inc.favCustom)) S.favCustom=inc.favCustom;
       S.navigating     = !!inc.navigating;
       S.currentLat     = typeof inc.currentLat==='number'  ? inc.currentLat  : null;
       S.currentLon     = typeof inc.currentLon==='number'  ? inc.currentLon  : null;
@@ -385,7 +387,6 @@ function init(){
       if(inc.dest&&inc.dest.lat) S.active={name:inc.dest.name||'',address:'',lat:inc.dest.lat,lon:inc.dest.lon};
     }catch(e){}
   }
-
   var ti=qs('#tokenInput');        if(ti)  ti.value=S.token;
   var ta=qs('#turnAlerts');        if(ta)  ta.checked=S.turnAlerts;
   var sti=qs('#stadiaTokenInput'); if(sti) sti.value=S.stadiaToken;
@@ -412,6 +413,8 @@ function decodePolyline6(str) {
 }
 
 // ── Route fetch: provider-aware dispatcher ─────────────────────────────
+// v0.17.3: callback signature is (coords, duration, distance, alternates)
+// alternates = [{coords:[], time:N, length:N}, ...] or null
 function fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, callback) {
   if (routeXhrs[id]) {
     try { routeXhrs[id].abort(); } catch(e) {}
@@ -424,7 +427,6 @@ function fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, callback) {
   }
 }
 
-// Mapbox Directions (GET — CORS simple request, no preflight)
 function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
   var profileMap = { cycling: 'cycling', walking: 'walking', driving: 'driving' };
   var profile = profileMap[S.profile] || 'cycling';
@@ -440,57 +442,22 @@ function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
   xhr.onload = function() {
     if (routeXhrs[id] !== xhr) return;
     routeXhrs[id] = null;
-    if (xhr.status !== 200) { callback(null, null, null); return; }
+    if (xhr.status !== 200) { callback(null, null, null, null); return; }
     try {
       var data = JSON.parse(xhr.responseText);
       var route = data.routes && data.routes[0];
-      if (!route) { callback(null, null, null); return; }
-      callback(route.geometry.coordinates, route.duration, route.distance);
-    } catch(e) { callback(null, null, null); }
+      if (!route) { callback(null, null, null, null); return; }
+      callback(route.geometry.coordinates, route.duration, route.distance, null);
+    } catch(e) { callback(null, null, null, null); }
   };
   xhr.onerror = xhr.ontimeout = function() {
     if (routeXhrs[id] === xhr) routeXhrs[id] = null;
-    callback(null, null, null);
+    callback(null, null, null, null);
   };
   xhr.send();
 }
 
-// ── Stadia / Valhalla route fetch (config page browser context) ────────
-//
-// v0.16h FIX: CORS — root cause of missing route line and pins on Stadia.
-//
-// The previous version used:
-//   xhr.open('POST', 'https://api.stadiamaps.com/route/v1')
-//   xhr.setRequestHeader('Content-Type', 'application/json')
-//   xhr.setRequestHeader('Authorization', 'Stadia-Auth ' + token)
-//
-// This triggers a CORS preflight OPTIONS request because:
-//   1. POST is not a CORS "simple" method for JSON payloads
-//   2. Content-Type: application/json triggers preflight
-//   3. Authorization is a custom header — triggers preflight
-//
-// WKWebView sends the OPTIONS preflight. If Stadia's API doesn't respond
-// with Access-Control-Allow-Headers: Authorization from foremat.github.io,
-// the browser blocks the real request → XHR onerror fires → callback(null)
-// → no route drawn. GL map tiles still load (different CORS-enabled origin).
-// This is why switching to Mapbox provider immediately showed the route:
-// Mapbox Directions uses a plain GET with no custom headers → no preflight.
-//
-// FIX: Switch to GET with json= query parameter + api_key= in URL.
-//   - GET = simple CORS method (no preflight required)
-//   - api_key in URL = authentication without Authorization header
-//   - No Content-Type header (GET has no body)
-//   → Zero CORS preflight triggers. Works from any browser origin.
-//
-// Note: PebbleKit JS (index.js) correctly uses POST + Authorization header
-// because PebbleKit JS runtime does NOT enforce CORS — it is not a browser.
-// The config page IS a browser (WKWebView) → different auth approach needed.
-//
-// Note: api_key in URL is acceptable here — the token is already stored in
-// browser localStorage and this call fires at most once per destination select.
-//
-// Valhalla GET format: GET /route/v1?api_key=KEY&json={...URL-encoded...}
-// This is the original Valhalla/Loki API format, supported by Stadia.
+// v0.17.3: Stadia preview includes alternates:2 and returns them in callback
 function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
   var profileMap = { cycling: 'bicycle', walking: 'pedestrian', driving: 'auto' };
   var costing = profileMap[S.profile] || 'bicycle';
@@ -509,49 +476,59 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
     ],
     costing: costing,
     costing_options: costingOptions,
-    directions_options: { units: 'kilometers' }
+    directions_options: { units: 'kilometers' },
+    alternates: 2  // v0.17.3: request up to 2 alternate routes
   });
-  // GET + api_key in URL + json= body param = no custom headers = no CORS preflight
   var url = 'https://api.stadiamaps.com/route/v1'
     + '?api_key=' + encodeURIComponent(S.stadiaToken)
     + '&json='    + encodeURIComponent(jsonParam);
   var xhr = new XMLHttpRequest();
   routeXhrs[id] = xhr;
-  xhr.open('GET', url);  // GET — no Content-Type, no Authorization header
+  xhr.open('GET', url);
   xhr.timeout = 10000;
   xhr.onload = function() {
     if (routeXhrs[id] !== xhr) return;
     routeXhrs[id] = null;
-    if (xhr.status !== 200) { callback(null, null, null); return; }
+    if (xhr.status !== 200) { callback(null, null, null, null); return; }
     try {
       var data = JSON.parse(xhr.responseText);
       if (!data.trip || !data.trip.legs || !data.trip.legs[0]) {
-        callback(null, null, null); return;
+        callback(null, null, null, null); return;
       }
       var leg     = data.trip.legs[0];
       var summary = data.trip.summary || {};
       var coords = typeof leg.shape === 'string'
         ? decodePolyline6(leg.shape)
         : (Array.isArray(leg.shape) ? leg.shape : []);
-      callback(coords, summary.time || 0, (summary.length || 0) * 1000);
-    } catch(e) { callback(null, null, null); }
+      // v0.17.3: parse alternate routes for map display
+      var altCoords = [];
+      if (data.alternates && Array.isArray(data.alternates)) {
+        data.alternates.forEach(function(alt) {
+          if (!alt.trip || !alt.trip.legs || !alt.trip.legs[0]) return;
+          var altLeg = alt.trip.legs[0];
+          var ac = typeof altLeg.shape === 'string'
+            ? decodePolyline6(altLeg.shape)
+            : (Array.isArray(altLeg.shape) ? altLeg.shape : []);
+          var altSum = alt.trip.summary || {};
+          altCoords.push({ coords: ac, time: altSum.time || 0, length: (altSum.length || 0) * 1000 });
+        });
+      }
+      callback(coords, summary.time || 0, (summary.length || 0) * 1000, altCoords.length ? altCoords : null);
+    } catch(e) { callback(null, null, null, null); }
   };
   xhr.onerror = xhr.ontimeout = function() {
     if (routeXhrs[id] === xhr) routeXhrs[id] = null;
-    callback(null, null, null);
+    callback(null, null, null, null);
   };
-  xhr.send();  // GET — no body
+  xhr.send();
 }
 
 // ── GL map: initialiser ────────────────────────────────────────────────
-// Destroys previous GL instance, replaces inner div (fresh WebGL context),
-// initialises GL, fetches route via provider-aware dispatcher.
 function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   var wrapperId = id === 'nav' ? 'navProgressMapWrap' : 'previewMapWrap';
   var innerId   = id + '-gl-inner';
   var wrapEl    = qs('#' + wrapperId);
   if (!wrapEl) return;
-
   if (glInstances[id]) {
     try { glInstances[id].remove(); } catch(e) {}
     glInstances[id] = null;
@@ -564,15 +541,13 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   newInner.id = innerId;
   newInner.className = 'gl-inner';
   wrapEl.appendChild(newInner);
-
   if (typeof mapboxgl === 'undefined') {
     fallbackStaticImage(wrapEl, tok, dLon, dLat);
     fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, function(coords, dur, dist) {
-      if (onRouteReady) onRouteReady(null, dur, dist);
+      if (onRouteReady) onRouteReady(null, dur, dist, null);
     });
     return;
   }
-
   mapboxgl.accessToken = tok;
   var map = new mapboxgl.Map({
     container: newInner,
@@ -586,20 +561,42 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   glInstances[id] = map;
   map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
-  fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, function(coords, duration, distance) {
-    if (onRouteReady) onRouteReady(coords, duration, distance);
+  // v0.17.3: callback receives (coords, duration, distance, alternates)
+  fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, function(coords, duration, distance, alternates) {
+    if (onRouteReady) onRouteReady(coords, duration, distance, alternates);
     if (!coords || coords.length < 2) return;
-
     function drawRouteOnMap() {
       var bounds = new mapboxgl.LngLatBounds();
       coords.forEach(function(c) { bounds.extend(c); });
+      // Also extend bounds to include alternates
+      if (alternates) {
+        alternates.forEach(function(alt) {
+          if (alt.coords) alt.coords.forEach(function(c) { bounds.extend(c); });
+        });
+      }
       map.fitBounds(bounds, {
         padding: { top:50, bottom:60, left:40, right:40 },
         animate: false,
         maxZoom: 15
       });
-      // Route line: white casing (6px) + provider-coloured fill (4px)
       var lineColour = S.provider === 'stadia' ? '#5b4bdb' : '#007AFF';
+
+      // v0.17.3: draw alternates first (behind primary route) with lower opacity
+      if (alternates && alternates.length) {
+        alternates.forEach(function(alt, i) {
+          if (!alt.coords || alt.coords.length < 2) return;
+          var altId = 'rt-alt' + i;
+          map.addSource(altId, { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:alt.coords } } });
+          map.addLayer({ id: altId+'-casing', type:'line', source: altId,
+            layout:{'line-join':'round','line-cap':'round'},
+            paint:{'line-color':'#ffffff','line-width':4,'line-opacity':0.4} });
+          map.addLayer({ id: altId+'-fill', type:'line', source: altId,
+            layout:{'line-join':'round','line-cap':'round'},
+            paint:{'line-color':lineColour,'line-width':2,'line-opacity':0.35} });
+        });
+      }
+
+      // Primary route: white casing + provider colour fill
       map.addSource('rt', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:coords } } });
       map.addLayer({ id:'rt-casing', type:'line', source:'rt',
         layout:{'line-join':'round','line-cap':'round'},
@@ -607,6 +604,7 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
       map.addLayer({ id:'rt-fill', type:'line', source:'rt',
         layout:{'line-join':'round','line-cap':'round'},
         paint:{'line-color':lineColour,'line-width':4} });
+
       // Origin: green dot
       var oEl = document.createElement('div');
       oEl.style.cssText = 'width:14px;height:14px;border-radius:50%;'
@@ -615,7 +613,6 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
       // Destination pin: provider colour
       new mapboxgl.Marker({ color: lineColour }).setLngLat([dLon, dLat]).addTo(map);
     }
-
     map.isStyleLoaded() ? drawRouteOnMap() : map.once('load', drawRouteOnMap);
   });
 
@@ -676,12 +673,10 @@ function showRoutePreview(dest) {
   var tok = currentToken();
   if (!tok || tok.indexOf('pk.') !== 0) { prevSec.style.display = 'none'; return; }
   prevSec.style.display = '';
-
   var hasGPS      = S.currentLat !== null && S.currentLon !== null;
   var oLat        = hasGPS ? S.currentLat : FALLBACK_LAT;
   var oLon        = hasGPS ? S.currentLon : FALLBACK_LON;
   var originLabel = hasGPS ? 'your location' : 'Auckland City Centre (no GPS yet)';
-
   var etaMain = qs('#previewEtaMain');
   var etaSub  = qs('#previewEtaSub');
   if (etaMain) etaMain.textContent = 'Calculating\u2026';
@@ -691,9 +686,8 @@ function showRoutePreview(dest) {
       : '<span class="provider-badge mapbox">Mapbox</span>';
     etaSub.innerHTML = 'from ' + esc(originLabel) + badge;
   }
-
   initGLMap('preview', tok, oLon, oLat, parseFloat(dest.lon), parseFloat(dest.lat),
-    function(coords, duration, distance) {
+    function(coords, duration, distance, alternates) {
       if (duration !== null) {
         var mins    = Math.ceil(duration / 60);
         var distStr = distance >= 1000
@@ -705,8 +699,12 @@ function showRoutePreview(dest) {
           var badge2 = S.provider === 'stadia'
             ? '<span class="provider-badge stadia">Valhalla</span>'
             : '<span class="provider-badge mapbox">Mapbox</span>';
+          // v0.17.3: show route count if alternates available
+          var routeCount = 1 + (alternates ? alternates.length : 0);
+          var routeStr = routeCount > 1 ? '  \u00b7  ' + routeCount + ' routes' : '';
           etaSub.innerHTML = 'from ' + esc(originLabel) + badge2
-            + '  \u00b7  ETA ~' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
+            + '  \u00b7  ETA ~' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes())
+            + routeStr;
         }
       } else {
         if (etaMain) etaMain.textContent = 'Route unavailable';
@@ -718,8 +716,103 @@ function showRoutePreview(dest) {
 
 // ── Bike type validator ────────────────────────────────────────────────
 function validBikeType(t){return t==='Road'||t==='Hybrid'||t==='Cross'||t==='Mountain';}
+
+// ── Custom favourites ─────────────────────────────────────────────────
+function renderCustomFavs() {
+  var list = qs('#customFavsList');
+  var addBtn = qs('#addCustomFavBtn');
+  if (!list) return;
+
+  // Update add button state
+  if (addBtn) addBtn.disabled = !S.active || !S.active.lat;
+
+  if (!S.favCustom || !S.favCustom.length) {
+    list.innerHTML = '<div class="custom-empty">No custom places yet — search for a destination and tap Save as Custom.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < S.favCustom.length; i++) {
+    var c = S.favCustom[i];
+    html += '<div class="custom-item" data-ci="'+i+'">'
+      + '<span class="pick-icon" style="font-size:18px;width:28px">📍</span>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div class="custom-item-label">'+esc(c.label||'Place')+'</div>'
+      + (c.address ? '<div class="custom-item-addr">'+esc(c.address)+'</div>' : '')
+      + '</div>'
+      + '<button class="custom-del-btn" data-di="'+i+'" title="Remove">×</button>'
+      + '</div>';
+  }
+  list.innerHTML = html;
+
+  // Bind tap-to-navigate on item body
+  var items = list.querySelectorAll('[data-ci]');
+  for (var j = 0; j < items.length; j++) {
+    (function(el) {
+      el.addEventListener('click', function(e) {
+        if (e.target && e.target.hasAttribute('data-di')) return; // let delete handle
+        var idx = parseInt(el.getAttribute('data-ci'), 10);
+        if (S.favCustom[idx]) selectDest(S.favCustom[idx], false);
+      });
+    })(items[j]);
+  }
+  // Bind delete buttons
+  var delBtns = list.querySelectorAll('[data-di]');
+  for (var k = 0; k < delBtns.length; k++) {
+    (function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var idx = parseInt(btn.getAttribute('data-di'), 10);
+        removeCustomFav(idx);
+      });
+    })(delBtns[k]);
+  }
+}
+
+function addCustomFav() {
+  if (!S.active || !S.active.lat) {
+    alert('Choose a destination first, then tap Add current destination.');
+    return;
+  }
+  var defaultLabel = (S.active.name || 'Place').substring(0, 22).toUpperCase();
+  var label = prompt('Name this custom place (shown on watch):', defaultLabel);
+  if (!label || !label.trim()) return;
+  label = label.trim().toUpperCase().substring(0, 22);
+  if (!Array.isArray(S.favCustom)) S.favCustom = [];
+  // Prevent duplicates by lat/lon
+  for (var i = 0; i < S.favCustom.length; i++) {
+    if (S.favCustom[i].lat === S.active.lat && S.favCustom[i].lon === S.active.lon) {
+      S.favCustom[i].label = label;
+      saveStore(); renderCustomFavs();
+      return;
+    }
+  }
+  S.favCustom.push({
+    label:   label,
+    name:    S.active.name || label,
+    address: S.active.address || '',
+    lat:     S.active.lat,
+    lon:     S.active.lon,
+    profile: S.profile,
+    savedAt: Date.now()
+  });
+  saveStore();
+  renderCustomFavs();
+  // Brief confirmation feedback on the button
+  var btn = qs('#saveCustom');
+  if (btn) { var orig = btn.textContent; btn.textContent = '✓ Saved!'; setTimeout(function(){ btn.textContent = orig; }, 1600); }
+}
+
+function removeCustomFav(idx) {
+  if (!S.favCustom || idx < 0 || idx >= S.favCustom.length) return;
+  var name = S.favCustom[idx].label || 'this place';
+  if (!confirm('Remove "' + name + '" from custom places?')) return;
+  S.favCustom.splice(idx, 1);
+  saveStore();
+  renderCustomFavs();
+}
+
 // ── Render helpers ─────────────────────────────────────────────────────
-function renderAll(){renderProfile();renderProvider();renderBikeType();renderCurrent();renderFavs();renderRecents();updateSaveBtn();}
+function renderAll(){renderProfile();renderProvider();renderBikeType();renderCurrent();renderFavs();renderCustomFavs();renderRecents();updateSaveBtn();}
 function renderBikeType(){
   var btns=qsa('[data-biketype]');
   for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-biketype')===S.valhallaBicycleType?' on':'');
@@ -742,6 +835,9 @@ function renderCurrent(){
   var n=qs('#destName'),a=qs('#destAddr');
   if(n)n.textContent=S.active.name||'Selected destination';
   if(a)a.textContent=S.active.address||'';
+  // Update add-custom button state whenever current changes
+  var addBtn = qs('#addCustomFavBtn');
+  if (addBtn) addBtn.disabled = false;
 }
 function renderFavs(){setFavItem('home','homeVal','pickHome');setFavItem('work','workVal','pickWork');}
 function setFavItem(key,valId,rowId){
@@ -879,16 +975,15 @@ function doSave(){
     turnAlerts:S.turnAlerts,
     favHome:S.favs.home,
     favWork:S.favs.work,
+    favCustom:S.favCustom,  // v0.17.3: include custom favs in save result
     valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
     valhallaBicycleType:S.valhallaBicycleType
   };
-  // v0.17.2 security: validate return_to scheme — must be pebblejs:// to prevent open redirect
   var returnTo=getParam('return_to','pebblejs://close#');
   if(returnTo.indexOf('pebblejs://')!==0)returnTo='pebblejs://close#';
   document.location=returnTo+encodeURIComponent(JSON.stringify(result));
 }
 function doCancel(){
-  // v0.17.2 security: validate return_to scheme
   var rt=getParam('return_to','pebblejs://close#');
   if(rt.indexOf('pebblejs://')!==0)rt='pebblejs://close#';
   document.location=rt;
@@ -902,7 +997,7 @@ function bindAll(){
   var pb=qsa('[data-prof]');
   for(var i=0;i<pb.length;i++){(function(b){b.addEventListener('click',function(){
     S.profile=b.getAttribute('data-prof');renderProfile();
-    if(S.active&&S.active.lat) showRoutePreview(S.active);
+    if(S.active&&S.active.lat) schedulePreview();
   });})(pb[i]);}
 
   var provB=qsa('[data-prov]');
@@ -910,14 +1005,15 @@ function bindAll(){
     S.provider=b.getAttribute('data-prov');
     var sti=qs('#stadiaTokenInput');if(sti)S.stadiaToken=sti.value.trim();
     saveStore();renderProvider();
-    if(S.active&&S.active.lat) showRoutePreview(S.active);
+    if(S.active&&S.active.lat) schedulePreview();
   });})(provB[p]);}
 
+  // v0.17.3: bike type now uses shared schedulePreview() debounce (was immediate)
   var btB=qsa('[data-biketype]');
   for(var bt=0;bt<btB.length;bt++){(function(b){b.addEventListener('click',function(){
     S.valhallaBicycleType=b.getAttribute('data-biketype');
     saveStore();renderBikeType();
-    if(S.active&&S.active.lat&&S.provider==='stadia') showRoutePreview(S.active);
+    if(S.active&&S.active.lat&&S.provider==='stadia') schedulePreview();
   });})(btB[bt]);}
 
   var stadiaInput=qs('#stadiaTokenInput');
@@ -926,15 +1022,12 @@ function bindAll(){
     stadiaInput.addEventListener('change',function(){S.stadiaToken=this.value.trim();saveStore();});
   }
 
-  var sliderTimer = null;
+  // v0.17.3: sliders use schedulePreview() — same debounce as bike type
   var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
   function onSliderChange() {
     if (ur) S.valhallaUseRoads = parseFloat(ur.value) || 0.25;
     if (uh) S.valhallaUseHills = parseFloat(uh.value) || 0.10;
-    clearTimeout(sliderTimer);
-    sliderTimer = setTimeout(function() {
-      if (S.active && S.active.lat && S.provider === 'stadia') showRoutePreview(S.active);
-    }, 600);
+    if (S.active && S.active.lat) schedulePreview();
   }
   if(ur){ur.addEventListener('input',function(){if(urv)urv.textContent=(parseFloat(this.value)||0.25).toFixed(2);onSliderChange();});}
   if(uh){uh.addEventListener('input',function(){if(uhv)uhv.textContent=(parseFloat(this.value)||0.10).toFixed(2);onSliderChange();});}
@@ -943,6 +1036,12 @@ function bindAll(){
   var pw=qs('#pickWork');if(pw)pw.addEventListener('click',function(){if(S.favs.work)selectDest(S.favs.work,false);});
   var sh=qs('#saveHome');if(sh)sh.addEventListener('click',function(){saveFav('home');});
   var sw=qs('#saveWork');if(sw)sw.addEventListener('click',function(){saveFav('work');});
+
+  // v0.17.3: Save as Custom button
+  var sc=qs('#saveCustom');if(sc)sc.addEventListener('click',function(){addCustomFav();});
+  // Add custom fav from quick destinations section button
+  var acf=qs('#addCustomFavBtn');if(acf)acf.addEventListener('click',function(){addCustomFav();});
+
   var ta=qs('#turnAlerts');if(ta)ta.addEventListener('change',function(){S.turnAlerts=this.checked;saveStore();});
   var at=qs('#advToggle'),ab=qs('#advBody'),ar=qs('#advArrow');
   if(at&&ab)at.addEventListener('click',function(){var o=ab.classList.toggle('open');if(ar)ar.textContent=o?'\u2039':'\u203a';});
