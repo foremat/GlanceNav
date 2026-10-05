@@ -6,7 +6,10 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.4 config page
+<!-- GlanceNav v0.17.5 config page
+     Changes from v0.17.4:
+     • Alternate routes shown in preview map for Mapbox provider (parity with Valhalla)
+     • schedulePreview() dead branch removed (cosmetic cleanup)
      Changes from v0.17.3:
      • Junction view toggle — settings page control for schematic road underlay
      Changes from v0.17.2 / v0.16h:
@@ -332,10 +335,9 @@ var sessionTok = uuid4(), debTimer = null, pendXhr = null;
 // v0.17.3: unified preview debounce timer (shared by sliders AND bike type)
 var previewTimer = null;
 function schedulePreview() {
+  // v0.17.5: collapsed dead branch — both paths were identical
   clearTimeout(previewTimer);
-  if (S.active && S.active.lat && S.provider === 'stadia') {
-    previewTimer = setTimeout(function() { showRoutePreview(S.active); }, 600);
-  } else if (S.active && S.active.lat) {
+  if (S.active && S.active.lat) {
     previewTimer = setTimeout(function() { showRoutePreview(S.active); }, 600);
   }
 }
@@ -443,7 +445,7 @@ function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
   var url = 'https://api.mapbox.com/directions/v5/mapbox/' + profile
     + '/' + oLon.toFixed(6) + ',' + oLat.toFixed(6)
     + ';'  + dLon.toFixed(6) + ',' + dLat.toFixed(6)
-    + '?steps=false&overview=full&geometries=geojson&access_token='
+    + '?steps=false&alternatives=true&overview=full&geometries=geojson&access_token='  // v0.17.5: alternates
     + encodeURIComponent(tok);
   var xhr = new XMLHttpRequest();
   routeXhrs[id] = xhr;
@@ -457,7 +459,13 @@ function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
       var data = JSON.parse(xhr.responseText);
       var route = data.routes && data.routes[0];
       if (!route) { callback(null, null, null, null); return; }
-      callback(route.geometry.coordinates, route.duration, route.distance, null);
+      // v0.17.5: parse alternate routes for config page preview parity with Valhalla
+      var alts = (data.routes || []).slice(1).map(function(r) {
+        return { coords: r.geometry && r.geometry.coordinates ? r.geometry.coordinates : [],
+                 time: r.duration || 0, length: r.distance || 0 };
+      });
+      callback(route.geometry.coordinates, route.duration, route.distance,
+               alts.length ? alts : null);
     } catch(e) { callback(null, null, null, null); }
   };
   xhr.onerror = xhr.ontimeout = function() {
