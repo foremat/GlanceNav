@@ -6,17 +6,22 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.5 config page
-     Changes from v0.17.4:
+<!-- GlanceNav v0.17.7 config page
+     Changes from v0.17.6 (v0.17.7):
+     • Units preference: Automatic / Metric / Imperial segmented control.
+       Infrastructure was already correct in the JS layer (unitsChoice
+       sent in handoff, read in webviewclosed). This page was missing
+       S.unitsChoice state, the UI section, and the doSave() inclusion.
+     Changes from v0.17.5 (v0.17.6):
+     • No config page changes in v0.17.6.
+     Changes from v0.17.4 (v0.17.5):
      • Alternate routes shown in preview map for Mapbox provider (parity with Valhalla)
-     • schedulePreview() dead branch removed (cosmetic cleanup)
-     Changes from v0.17.3:
-     • Junction view toggle — settings page control for schematic road underlay
-     Changes from v0.17.2 / v0.16h:
-     • Custom favourites UI — add/delete/navigate to custom saved places
-     • Alternative routes — Valhalla preview shows primary + alternate polylines
-     • Preview debounce unified — bike type changes share same 600ms timer as sliders
-     • favCustom read from handoff and saved in doSave() result
+     Changes from v0.17.3 (v0.17.4):
+     • Junction view toggle
+     Changes from v0.17.2 (v0.17.3):
+     • Custom favourites UI
+     • Alternative routes Valhalla preview
+     • Preview debounce unified
 -->
 <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet'>
 <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -27,29 +32,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .hdr-icon{font-size:26px;line-height:1;flex-shrink:0}
 .hdr-title{font-size:19px;font-weight:700;letter-spacing:-.3px}
 .hdr-sub{font-size:12px;color:rgba(255,255,255,.45);margin-top:2px}
-/* ── Navigation in progress ─────────────────────────────────────────── */
 .nav-banner{background:#1a6b31;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
 .nav-dot{width:10px;height:10px;border-radius:50%;background:#4cd964;flex-shrink:0;box-shadow:0 0 0 3px rgba(76,217,100,.3)}
-/* ── GL map wrapper ──────────────────────────────────────────────────── */
 .gl-map-wrap{position:relative;background:#dce6f0;overflow:hidden}
-.gl-map-wrap .map-loading{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  font-size:13px;color:#8e8e93;pointer-events:none
-}
+.gl-map-wrap .map-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#8e8e93;pointer-events:none}
 .gl-inner{position:absolute;top:0;left:0;width:100%;height:100%}
 .gl-inner .mapboxgl-map{position:absolute!important;top:0;left:0;width:100%!important;height:100%!important}
-/* ── Tap-to-interact overlay ─────────────────────────────────────────── */
 .map-tap-overlay{position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(0,0,0,0.06);-webkit-tap-highlight-color:transparent}
 .map-tap-label{background:rgba(0,0,0,0.50);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;font-weight:600;letter-spacing:0.1px;pointer-events:none;-webkit-user-select:none;user-select:none}
-/* ── ETA card ────────────────────────────────────────────────────────── */
 .eta-card{padding:14px 16px 12px;border-top:1px solid #e5e5ea;background:#f8fff9}
 .eta-card-main{font-size:22px;font-weight:700;color:#111;line-height:1.2}
 .eta-card-sub{font-size:13px;color:#8e8e93;margin-top:4px}
-/* ── Provider badge ─────────────────────────────────────────────────── */
 .provider-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:8px;vertical-align:middle;letter-spacing:0.2px}
 .provider-badge.stadia{background:#5b4bdb;color:#fff}
 .provider-badge.mapbox{background:#007AFF;color:#fff}
-/* ── Search ─────────────────────────────────────────────────────────── */
 .search-bar{background:#fff;padding:10px 12px;border-bottom:1px solid #e5e5ea;position:sticky;top:0;z-index:20}
 .search-wrap{position:relative}
 .search-input{width:100%;height:48px;padding:0 14px 0 44px;font-size:16px;border:1.5px solid #e5e5ea;border-radius:12px;background:#f2f2f7;color:#111;outline:none;-webkit-appearance:none;transition:border-color .15s,background .15s}
@@ -66,11 +62,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .srch-status{padding:8px 16px;font-size:13px;color:#666;background:#fff;border-bottom:1px solid #e5e5ea}
 .srch-status:empty{display:none}
 .srch-status.err{color:#c00000}
-/* ── Sections ───────────────────────────────────────────────────────── */
 .section{background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:20px}
 .sec-hdr{padding:12px 16px 5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73}
 .sec-hint{font-size:13px;color:#6c6c70;padding:6px 16px 14px;line-height:1.4}
-/* ── Selected destination ───────────────────────────────────────────── */
 #currentSection{border-left:4px solid #007AFF !important;background:#fff}
 .dest-card{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;background:#f0f7ff}
 .dest-indicator{width:10px;height:10px;border-radius:50%;background:#007AFF;margin-top:5px;flex-shrink:0}
@@ -79,7 +73,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .dest-fav-row{display:flex;gap:8px;padding:0 16px 14px;background:#f0f7ff}
 .dest-fav-btn{flex:1;padding:10px 6px;font-size:14px;font-weight:600;border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;background:#fff;cursor:pointer}
 .dest-fav-btn:active{background:#eef5ff}
-/* ── Quick pick ─────────────────────────────────────────────────────── */
 .pick-item{padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:62px;-webkit-tap-highlight-color:rgba(0,0,0,.04)}
 .pick-item:last-child{border-bottom:none}
 .pick-item:active{background:#f5f5f5}
@@ -89,7 +82,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .pick-value{font-size:13px;color:#555;margin-top:2px}
 .pick-empty{font-size:13px;color:#aaa;margin-top:2px;font-style:italic}
 .chev{margin-left:auto;font-size:20px;color:#c7c7cc;padding-left:6px;flex-shrink:0}
-/* ── Custom favourites ──────────────────────────────────────────────── */
 .custom-item{padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:54px;-webkit-tap-highlight-color:rgba(0,0,0,.04)}
 .custom-item:last-child{border-bottom:none}
 .custom-item:active{background:#f5f5f5}
@@ -101,7 +93,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .custom-add-btn:active{opacity:.7}
 .custom-add-btn:disabled{opacity:.35;cursor:default}
 .custom-empty{padding:12px 16px;font-size:13px;color:#aaa;font-style:italic}
-/* ── Recents ────────────────────────────────────────────────────────── */
 .recent-item{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px}
 .recent-item:last-child{border-bottom:none}
 .recent-item:active{background:#f5f5f5}
@@ -109,14 +100,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .rec-name{font-size:15px;font-weight:600;color:#111}
 .rec-addr{font-size:12px;color:#8e8e93;margin-top:2px}
 .empty-msg{padding:14px 16px;font-size:14px;color:#aaa;font-style:italic}
-/* ── Segmented controls ─────────────────────────────────────────────── */
 .profile-row{display:flex;gap:0;padding:12px 16px 16px}
 .profile-btn{flex:1;padding:12px 4px;font-size:13px;font-weight:600;border:1.5px solid #e5e5ea;background:#f2f2f7;cursor:pointer;color:#3c3c43;text-align:center;-webkit-tap-highlight-color:transparent;transition:background .12s,color .12s}
 .profile-btn:first-child{border-radius:10px 0 0 10px}
 .profile-btn:last-child{border-radius:0 10px 10px 0}
 .profile-btn:not(:first-child){border-left:none}
 .profile-btn.on{background:#007AFF;border-color:#007AFF;color:#fff;position:relative;z-index:1}
-/* ── Toggle ──────────────────────────────────────────────────────────── */
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f2f2f7;cursor:pointer;min-height:52px}
 .toggle-row:last-child{border-bottom:none}
 .toggle-label{font-size:16px;color:#111;font-weight:400}
@@ -125,7 +114,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 .toggle-track::after{content:'';position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
 .toggle-row input:checked + .toggle-track{background:#34c759}
 .toggle-row input:checked + .toggle-track::after{transform:translateX(20px)}
-/* ── Stadia + Valhalla ───────────────────────────────────────────────── */
 .stadia-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#5b4bdb;border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:middle}
 .slider-row{padding:12px 16px;border-bottom:1px solid #f2f2f7}
 .slider-row:last-child{border-bottom:none}
@@ -135,7 +123,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:#e5e5ea;outline:none}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#007AFF;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .slider-ends{display:flex;justify-content:space-between;font-size:11px;color:#8e8e93;margin-top:4px}
-/* ── Advanced ────────────────────────────────────────────────────────── */
 .adv-toggle{padding:14px 16px;font-size:15px;color:#007AFF;cursor:pointer;display:flex;align-items:center;gap:8px;background:#fff;border-top:1px solid #e5e5ea;border-bottom:1px solid #e5e5ea;margin-top:20px}
 .adv-arrow{margin-left:auto;font-size:22px;color:#c7c7cc}
 .adv-body{display:none;background:#fff;padding:0 16px 16px;border-bottom:1px solid #e5e5ea}
@@ -144,7 +131,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 .token-input{width:100%;padding:12px;font-size:13px;font-family:'Courier New',monospace;border:1.5px solid #e5e5ea;border-radius:10px;background:#f2f2f7;color:#111;-webkit-appearance:none;outline:none}
 .token-input:focus{border-color:#007AFF;background:#fff}
 .adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}
-/* ── Save bar ────────────────────────────────────────────────────────── */
 .end-space{height:16px}
 .save-bar{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:10px 16px env(safe-area-inset-bottom,12px);background:rgba(242,242,247,.96);border-top:1px solid #e5e5ea;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
 .btn-cancel{width:90px;height:50px;font-size:16px;font-weight:600;border:none;border-radius:12px;background:#e5e5ea;color:#3c3c43;cursor:pointer;flex-shrink:0}
@@ -220,7 +206,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div><div class="pick-label">Work</div><div id="workVal" class="pick-empty">Not set — search to add</div></div>
     <span class="chev">›</span>
   </div>
-  <!-- v0.17.3: custom favourites section -->
   <div id="customFavsSection" style="border-top:1px solid #f2f2f7">
     <div style="padding:10px 16px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#6e6e73">Custom Places</div>
     <div id="customFavsList"></div>
@@ -286,6 +271,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div class="slider-ends"><span>Avoid hills</span><span>Welcome hills</span></div>
   </div>
 </div>
+<!-- v0.17.7: Units preference — Automatic / Metric / Imperial -->
+<div class="section" style="margin-top:20px">
+  <div class="sec-hdr">Units</div>
+  <div class="profile-row">
+    <button class="profile-btn" data-units="auto">Auto</button>
+    <button class="profile-btn" data-units="metric">Metric</button>
+    <button class="profile-btn" data-units="imperial">Imperial</button>
+  </div>
+</div>
+<p class="sec-hint">Auto uses your device locale. Metric = km/m. Imperial = mi/ft. Setting persists across sessions.</p>
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Preferences</div>
   <label class="toggle-row" for="turnAlerts">
@@ -325,51 +320,51 @@ var FALLBACK_LON = 174.7633;
 var S = {
   token:'', stadiaToken:'', provider:'mapbox', profile:'cycling',
   active:null, favs:{home:null,work:null},
-  favCustom: [],   // v0.17.3: custom saved places
-  recents:[], turnAlerts:true, junctionView:true,  // v0.17.4
+  favCustom: [],
+  recents:[], turnAlerts:true, junctionView:true,
+  unitsChoice: 'auto',   // v0.17.7: Automatic / Metric / Imperial preference
   valhallaUseRoads:0.25, valhallaUseHills:0.10, valhallaBicycleType:'Hybrid',
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
 var glInstances = {}, routeXhrs = {};
 var sessionTok = uuid4(), debTimer = null, pendXhr = null;
-// v0.17.3: unified preview debounce timer (shared by sliders AND bike type)
 var previewTimer = null;
 function schedulePreview() {
-  // v0.17.5: collapsed dead branch — both paths were identical
   clearTimeout(previewTimer);
   if (S.active && S.active.lat) {
     previewTimer = setTimeout(function() { showRoutePreview(S.active); }, 600);
   }
 }
-
 function uuid4(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
 function qs(s){return document.querySelector(s);}
 function qsa(s){return document.querySelectorAll(s);}
 function esc(v){return String(v||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function getParam(n,fb){var m=location.search.match(new RegExp('[?&]'+n+'=([^&]*)'));return m?decodeURIComponent(m[1].replace(/\+/g,' ')):(fb||'');}
 function pad2(n){return n<10?'0'+n:''+n;}
-
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
-  return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,junctionView:true,provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
+  return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,junctionView:true,
+         unitsChoice:'auto',provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
 }
 function saveStore(){
   try{localStorage.setItem(STORE_KEY,JSON.stringify({
-    favs:S.favs,
-    favCustom:S.favCustom,  // v0.17.3
-    recents:S.recents,turnAlerts:S.turnAlerts,junctionView:S.junctionView,  // v0.17.4
-    provider:S.provider,stadiaToken:S.stadiaToken,
-    valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
+    favs:S.favs, favCustom:S.favCustom, recents:S.recents,
+    turnAlerts:S.turnAlerts, junctionView:S.junctionView,
+    unitsChoice:S.unitsChoice,  // v0.17.7
+    provider:S.provider, stadiaToken:S.stadiaToken,
+    valhallaUseRoads:S.valhallaUseRoads, valhallaUseHills:S.valhallaUseHills,
     valhallaBicycleType:S.valhallaBicycleType
   }));}catch(e){}
 }
-
+function validUnitsChoice(u){return u==='auto'||u==='metric'||u==='imperial';}
 function init(){
   var st=loadStore();
   S.favs=st.favs||{home:null,work:null};
   S.favCustom=Array.isArray(st.favCustom)?st.favCustom:[];
   S.recents=st.recents||[];
   S.turnAlerts=st.turnAlerts!==false;
+  S.junctionView=st.junctionView!==false;
+  S.unitsChoice=validUnitsChoice(st.unitsChoice)?st.unitsChoice:'auto';  // v0.17.7
   S.provider=st.provider==='stadia'?'stadia':'mapbox';
   S.stadiaToken=st.stadiaToken||'';
   S.valhallaUseRoads=typeof st.valhallaUseRoads==='number'?st.valhallaUseRoads:0.25;
@@ -384,13 +379,16 @@ function init(){
       if(inc.profile)       S.profile=inc.profile;
       if(inc.provider==='stadia')      S.provider='stadia';
       else if(inc.provider==='mapbox') S.provider='mapbox';
-      if(typeof inc.turnAlerts!=='undefined')    S.turnAlerts=inc.turnAlerts!==false;
-      if(typeof inc.junctionView!=='undefined') S.junctionView=inc.junctionView!==false;  // v0.17.4
+      if(typeof inc.turnAlerts!=='undefined')  S.turnAlerts=inc.turnAlerts!==false;
+      if(typeof inc.junctionView!=='undefined') S.junctionView=inc.junctionView!==false;
       if(typeof inc.valhallaUseRoads==='number') S.valhallaUseRoads=inc.valhallaUseRoads;
       if(typeof inc.valhallaUseHills==='number') S.valhallaUseHills=inc.valhallaUseHills;
       if(validBikeType(inc.valhallaBicycleType)) S.valhallaBicycleType=inc.valhallaBicycleType;
-      // v0.17.3: read favCustom from handoff (passed by PebbleKit JS showConfiguration)
       if(Array.isArray(inc.favCustom)) S.favCustom=inc.favCustom;
+      // v0.17.7: units preference from handoff
+      // JS sends c.unitsChoice as inc.units ('auto', 'metric', or 'imperial')
+      if(validUnitsChoice(inc.units))       S.unitsChoice=inc.units;
+      if(validUnitsChoice(inc.unitsChoice)) S.unitsChoice=inc.unitsChoice;
       S.navigating     = !!inc.navigating;
       S.currentLat     = typeof inc.currentLat==='number'  ? inc.currentLat  : null;
       S.currentLon     = typeof inc.currentLon==='number'  ? inc.currentLon  : null;
@@ -400,7 +398,7 @@ function init(){
   }
   var ti=qs('#tokenInput');        if(ti)  ti.value=S.token;
   var ta=qs('#turnAlerts');        if(ta)  ta.checked=S.turnAlerts;
-  var jvi=qs('#junctionView');     if(jvi) jvi.checked=S.junctionView;  // v0.17.4
+  var jvi=qs('#junctionView');     if(jvi) jvi.checked=S.junctionView;
   var sti=qs('#stadiaTokenInput'); if(sti) sti.value=S.stadiaToken;
   syncSliders();
   renderAll();
@@ -408,7 +406,6 @@ function init(){
   initNavProgress();
   if(S.active&&S.active.lat){ renderCurrent(); showRoutePreview(S.active); }
 }
-
 // ── Polyline6 decoder ─────────────────────────────────────────────────
 function decodePolyline6(str) {
   var coords = [], index = 0, lat = 0, lon = 0;
@@ -423,10 +420,7 @@ function decodePolyline6(str) {
   }
   return coords;
 }
-
 // ── Route fetch: provider-aware dispatcher ─────────────────────────────
-// v0.17.3: callback signature is (coords, duration, distance, alternates)
-// alternates = [{coords:[], time:N, length:N}, ...] or null
 function fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, callback) {
   if (routeXhrs[id]) {
     try { routeXhrs[id].abort(); } catch(e) {}
@@ -438,14 +432,13 @@ function fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, callback) {
     fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback);
   }
 }
-
 function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
   var profileMap = { cycling: 'cycling', walking: 'walking', driving: 'driving' };
   var profile = profileMap[S.profile] || 'cycling';
   var url = 'https://api.mapbox.com/directions/v5/mapbox/' + profile
     + '/' + oLon.toFixed(6) + ',' + oLat.toFixed(6)
     + ';'  + dLon.toFixed(6) + ',' + dLat.toFixed(6)
-    + '?steps=false&alternatives=true&overview=full&geometries=geojson&access_token='  // v0.17.5: alternates
+    + '?steps=false&alternatives=true&overview=full&geometries=geojson&access_token='
     + encodeURIComponent(tok);
   var xhr = new XMLHttpRequest();
   routeXhrs[id] = xhr;
@@ -459,7 +452,6 @@ function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
       var data = JSON.parse(xhr.responseText);
       var route = data.routes && data.routes[0];
       if (!route) { callback(null, null, null, null); return; }
-      // v0.17.5: parse alternate routes for config page preview parity with Valhalla
       var alts = (data.routes || []).slice(1).map(function(r) {
         return { coords: r.geometry && r.geometry.coordinates ? r.geometry.coordinates : [],
                  time: r.duration || 0, length: r.distance || 0 };
@@ -474,8 +466,6 @@ function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
   };
   xhr.send();
 }
-
-// v0.17.3: Stadia preview includes alternates:2 and returns them in callback
 function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
   var profileMap = { cycling: 'bicycle', walking: 'pedestrian', driving: 'auto' };
   var costing = profileMap[S.profile] || 'bicycle';
@@ -492,10 +482,8 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
       { lon: parseFloat(oLon.toFixed(6)), lat: parseFloat(oLat.toFixed(6)), type: 'break' },
       { lon: parseFloat(dLon.toFixed(6)), lat: parseFloat(dLat.toFixed(6)), type: 'break' }
     ],
-    costing: costing,
-    costing_options: costingOptions,
-    directions_options: { units: 'kilometers' },
-    alternates: 2  // v0.17.3: request up to 2 alternate routes
+    costing: costing, costing_options: costingOptions,
+    directions_options: { units: 'kilometers' }, alternates: 2
   });
   var url = 'https://api.stadiamaps.com/route/v1'
     + '?api_key=' + encodeURIComponent(S.stadiaToken)
@@ -510,23 +498,18 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
     if (xhr.status !== 200) { callback(null, null, null, null); return; }
     try {
       var data = JSON.parse(xhr.responseText);
-      if (!data.trip || !data.trip.legs || !data.trip.legs[0]) {
-        callback(null, null, null, null); return;
-      }
-      var leg     = data.trip.legs[0];
+      if (!data.trip || !data.trip.legs || !data.trip.legs[0]) { callback(null, null, null, null); return; }
+      var leg = data.trip.legs[0];
       var summary = data.trip.summary || {};
-      var coords = typeof leg.shape === 'string'
-        ? decodePolyline6(leg.shape)
-        : (Array.isArray(leg.shape) ? leg.shape : []);
-      // v0.17.3: parse alternate routes for map display
+      var coords = typeof leg.shape === 'string' ? decodePolyline6(leg.shape)
+                 : (Array.isArray(leg.shape) ? leg.shape : []);
       var altCoords = [];
       if (data.alternates && Array.isArray(data.alternates)) {
         data.alternates.forEach(function(alt) {
           if (!alt.trip || !alt.trip.legs || !alt.trip.legs[0]) return;
           var altLeg = alt.trip.legs[0];
-          var ac = typeof altLeg.shape === 'string'
-            ? decodePolyline6(altLeg.shape)
-            : (Array.isArray(altLeg.shape) ? altLeg.shape : []);
+          var ac = typeof altLeg.shape === 'string' ? decodePolyline6(altLeg.shape)
+                 : (Array.isArray(altLeg.shape) ? altLeg.shape : []);
           var altSum = alt.trip.summary || {};
           altCoords.push({ coords: ac, time: altSum.time || 0, length: (altSum.length || 0) * 1000 });
         });
@@ -540,24 +523,19 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
   };
   xhr.send();
 }
-
-// ── GL map: initialiser ────────────────────────────────────────────────
+// ── GL map ────────────────────────────────────────────────────────────
 function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   var wrapperId = id === 'nav' ? 'navProgressMapWrap' : 'previewMapWrap';
   var innerId   = id + '-gl-inner';
   var wrapEl    = qs('#' + wrapperId);
   if (!wrapEl) return;
-  if (glInstances[id]) {
-    try { glInstances[id].remove(); } catch(e) {}
-    glInstances[id] = null;
-  }
+  if (glInstances[id]) { try { glInstances[id].remove(); } catch(e) {} glInstances[id] = null; }
   var oldOverlay = wrapEl.querySelector('.map-tap-overlay');
   if (oldOverlay) oldOverlay.parentNode.removeChild(oldOverlay);
   var oldInner = qs('#' + innerId);
   if (oldInner) oldInner.parentNode.removeChild(oldInner);
   var newInner = document.createElement('div');
-  newInner.id = innerId;
-  newInner.className = 'gl-inner';
+  newInner.id = innerId; newInner.className = 'gl-inner';
   wrapEl.appendChild(newInner);
   if (typeof mapboxgl === 'undefined') {
     fallbackStaticImage(wrapEl, tok, dLon, dLat);
@@ -568,85 +546,48 @@ function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
   }
   mapboxgl.accessToken = tok;
   var map = new mapboxgl.Map({
-    container: newInner,
-    style: 'mapbox://styles/mapbox/streets-v12',
-    interactive: true,
-    attributionControl: false,
-    logoPosition: 'bottom-left',
-    center: [dLon, dLat],
-    zoom: 12
+    container: newInner, style: 'mapbox://styles/mapbox/streets-v12',
+    interactive: true, attributionControl: false, logoPosition: 'bottom-left',
+    center: [dLon, dLat], zoom: 12
   });
   glInstances[id] = map;
   map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
-
-  // v0.17.3: callback receives (coords, duration, distance, alternates)
   fetchPreviewRoute(id, oLon, oLat, dLon, dLat, tok, function(coords, duration, distance, alternates) {
     if (onRouteReady) onRouteReady(coords, duration, distance, alternates);
     if (!coords || coords.length < 2) return;
     function drawRouteOnMap() {
       var bounds = new mapboxgl.LngLatBounds();
       coords.forEach(function(c) { bounds.extend(c); });
-      // Also extend bounds to include alternates
-      if (alternates) {
-        alternates.forEach(function(alt) {
-          if (alt.coords) alt.coords.forEach(function(c) { bounds.extend(c); });
-        });
-      }
-      map.fitBounds(bounds, {
-        padding: { top:50, bottom:60, left:40, right:40 },
-        animate: false,
-        maxZoom: 15
-      });
+      if (alternates) { alternates.forEach(function(alt) { if (alt.coords) alt.coords.forEach(function(c) { bounds.extend(c); }); }); }
+      map.fitBounds(bounds, { padding: { top:50, bottom:60, left:40, right:40 }, animate: false, maxZoom: 15 });
       var lineColour = S.provider === 'stadia' ? '#5b4bdb' : '#007AFF';
-
-      // v0.17.3: draw alternates first (behind primary route) with lower opacity
       if (alternates && alternates.length) {
         alternates.forEach(function(alt, i) {
           if (!alt.coords || alt.coords.length < 2) return;
           var altId = 'rt-alt' + i;
           map.addSource(altId, { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:alt.coords } } });
-          map.addLayer({ id: altId+'-casing', type:'line', source: altId,
-            layout:{'line-join':'round','line-cap':'round'},
-            paint:{'line-color':'#ffffff','line-width':4,'line-opacity':0.4} });
-          map.addLayer({ id: altId+'-fill', type:'line', source: altId,
-            layout:{'line-join':'round','line-cap':'round'},
-            paint:{'line-color':lineColour,'line-width':2,'line-opacity':0.35} });
+          map.addLayer({ id: altId+'-casing', type:'line', source: altId, layout:{'line-join':'round','line-cap':'round'}, paint:{'line-color':'#ffffff','line-width':4,'line-opacity':0.4} });
+          map.addLayer({ id: altId+'-fill',   type:'line', source: altId, layout:{'line-join':'round','line-cap':'round'}, paint:{'line-color':lineColour,'line-width':2,'line-opacity':0.35} });
         });
       }
-
-      // Primary route: white casing + provider colour fill
       map.addSource('rt', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:coords } } });
-      map.addLayer({ id:'rt-casing', type:'line', source:'rt',
-        layout:{'line-join':'round','line-cap':'round'},
-        paint:{'line-color':'#ffffff','line-width':6} });
-      map.addLayer({ id:'rt-fill', type:'line', source:'rt',
-        layout:{'line-join':'round','line-cap':'round'},
-        paint:{'line-color':lineColour,'line-width':4} });
-
-      // Origin: green dot
+      map.addLayer({ id:'rt-casing', type:'line', source:'rt', layout:{'line-join':'round','line-cap':'round'}, paint:{'line-color':'#ffffff','line-width':6} });
+      map.addLayer({ id:'rt-fill',   type:'line', source:'rt', layout:{'line-join':'round','line-cap':'round'}, paint:{'line-color':lineColour,'line-width':4} });
       var oEl = document.createElement('div');
-      oEl.style.cssText = 'width:14px;height:14px;border-radius:50%;'
-        + 'background:#34c759;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)';
+      oEl.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#34c759;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)';
       new mapboxgl.Marker({ element: oEl }).setLngLat([oLon, oLat]).addTo(map);
-      // Destination pin: provider colour
       new mapboxgl.Marker({ color: lineColour }).setLngLat([dLon, dLat]).addTo(map);
     }
     map.isStyleLoaded() ? drawRouteOnMap() : map.once('load', drawRouteOnMap);
   });
-
-  // Tap-to-interact overlay
   var overlay = document.createElement('div');
   overlay.className = 'map-tap-overlay';
   overlay.innerHTML = '<span class="map-tap-label">Tap to interact</span>';
   wrapEl.appendChild(overlay);
-  function activateMap(evt) {
-    evt.stopPropagation();
-    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-  }
+  function activateMap(evt) { evt.stopPropagation(); if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
   overlay.addEventListener('touchstart', activateMap, { once: true, passive: false });
   overlay.addEventListener('click',      activateMap, { once: true });
 }
-
 function fallbackStaticImage(wrapEl, tok, dLon, dLat) {
   if (!tok || tok.indexOf('pk.') !== 0) return;
   var img = document.createElement('img');
@@ -657,8 +598,6 @@ function fallbackStaticImage(wrapEl, tok, dLon, dLat) {
     + dLon + ',' + dLat + ',14,0/300x240@2x?access_token=' + encodeURIComponent(tok);
   wrapEl.appendChild(img);
 }
-
-// ── Navigation in progress ─────────────────────────────────────────────
 function initNavProgress() {
   if (!S.navigating || !S.active) return;
   var sec = qs('#navProgressSection');
@@ -672,8 +611,8 @@ function initNavProgress() {
   }
   if (!tok || tok.indexOf('pk.') !== 0) return;
   var hasGPS = S.currentLat !== null && S.currentLon !== null;
-  var oLat = hasGPS ? S.currentLat  : FALLBACK_LAT;
-  var oLon = hasGPS ? S.currentLon  : FALLBACK_LON;
+  var oLat = hasGPS ? S.currentLat : FALLBACK_LAT;
+  var oLon = hasGPS ? S.currentLon : FALLBACK_LON;
   initGLMap('nav', tok, oLon, oLat, parseFloat(S.active.lon), parseFloat(S.active.lat),
     function(coords, duration) {
       if (duration !== null && etaEl) {
@@ -683,17 +622,15 @@ function initNavProgress() {
     }
   );
 }
-
-// ── Route preview ──────────────────────────────────────────────────────
 function showRoutePreview(dest) {
   var prevSec = qs('#routePreview');
   if (!prevSec) return;
   var tok = currentToken();
   if (!tok || tok.indexOf('pk.') !== 0) { prevSec.style.display = 'none'; return; }
   prevSec.style.display = '';
-  var hasGPS      = S.currentLat !== null && S.currentLon !== null;
-  var oLat        = hasGPS ? S.currentLat : FALLBACK_LAT;
-  var oLon        = hasGPS ? S.currentLon : FALLBACK_LON;
+  var hasGPS = S.currentLat !== null && S.currentLon !== null;
+  var oLat   = hasGPS ? S.currentLat : FALLBACK_LAT;
+  var oLon   = hasGPS ? S.currentLon : FALLBACK_LON;
   var originLabel = hasGPS ? 'your location' : 'Auckland City Centre (no GPS yet)';
   var etaMain = qs('#previewEtaMain');
   var etaSub  = qs('#previewEtaSub');
@@ -708,16 +645,13 @@ function showRoutePreview(dest) {
     function(coords, duration, distance, alternates) {
       if (duration !== null) {
         var mins    = Math.ceil(duration / 60);
-        var distStr = distance >= 1000
-          ? (distance / 1000).toFixed(1) + ' km'
-          : Math.round(distance) + ' m';
+        var distStr = distance >= 1000 ? (distance / 1000).toFixed(1) + ' km' : Math.round(distance) + ' m';
         var arr = new Date(Date.now() + duration * 1000);
         if (etaMain) etaMain.textContent = '~' + mins + ' min  \u00b7  ' + distStr;
         if (etaSub) {
           var badge2 = S.provider === 'stadia'
             ? '<span class="provider-badge stadia">Valhalla</span>'
             : '<span class="provider-badge mapbox">Mapbox</span>';
-          // v0.17.3: show route count if alternates available
           var routeCount = 1 + (alternates ? alternates.length : 0);
           var routeStr = routeCount > 1 ? '  \u00b7  ' + routeCount + ' routes' : '';
           etaSub.innerHTML = 'from ' + esc(originLabel) + badge2
@@ -731,19 +665,12 @@ function showRoutePreview(dest) {
     }
   );
 }
-
-// ── Bike type validator ────────────────────────────────────────────────
 function validBikeType(t){return t==='Road'||t==='Hybrid'||t==='Cross'||t==='Mountain';}
-
-// ── Custom favourites ─────────────────────────────────────────────────
 function renderCustomFavs() {
   var list = qs('#customFavsList');
   var addBtn = qs('#addCustomFavBtn');
   if (!list) return;
-
-  // Update add button state
   if (addBtn) addBtn.disabled = !S.active || !S.active.lat;
-
   if (!S.favCustom || !S.favCustom.length) {
     list.innerHTML = '<div class="custom-empty">No custom places yet — search for a destination and tap Save as Custom.</div>';
     return;
@@ -761,19 +688,16 @@ function renderCustomFavs() {
       + '</div>';
   }
   list.innerHTML = html;
-
-  // Bind tap-to-navigate on item body
   var items = list.querySelectorAll('[data-ci]');
   for (var j = 0; j < items.length; j++) {
     (function(el) {
       el.addEventListener('click', function(e) {
-        if (e.target && e.target.hasAttribute('data-di')) return; // let delete handle
+        if (e.target && e.target.hasAttribute('data-di')) return;
         var idx = parseInt(el.getAttribute('data-ci'), 10);
         if (S.favCustom[idx]) selectDest(S.favCustom[idx], false);
       });
     })(items[j]);
   }
-  // Bind delete buttons
   var delBtns = list.querySelectorAll('[data-di]');
   for (var k = 0; k < delBtns.length; k++) {
     (function(btn) {
@@ -785,52 +709,37 @@ function renderCustomFavs() {
     })(delBtns[k]);
   }
 }
-
 function addCustomFav() {
-  if (!S.active || !S.active.lat) {
-    alert('Choose a destination first, then tap Add current destination.');
-    return;
-  }
+  if (!S.active || !S.active.lat) { alert('Choose a destination first, then tap Add current destination.'); return; }
   var defaultLabel = (S.active.name || 'Place').substring(0, 22).toUpperCase();
   var label = prompt('Name this custom place (shown on watch):', defaultLabel);
   if (!label || !label.trim()) return;
   label = label.trim().toUpperCase().substring(0, 22);
   if (!Array.isArray(S.favCustom)) S.favCustom = [];
-  // Prevent duplicates by lat/lon
   for (var i = 0; i < S.favCustom.length; i++) {
     if (S.favCustom[i].lat === S.active.lat && S.favCustom[i].lon === S.active.lon) {
-      S.favCustom[i].label = label;
-      saveStore(); renderCustomFavs();
-      return;
+      S.favCustom[i].label = label; saveStore(); renderCustomFavs(); return;
     }
   }
-  S.favCustom.push({
-    label:   label,
-    name:    S.active.name || label,
-    address: S.active.address || '',
-    lat:     S.active.lat,
-    lon:     S.active.lon,
-    profile: S.profile,
-    savedAt: Date.now()
-  });
-  saveStore();
-  renderCustomFavs();
-  // Brief confirmation feedback on the button
+  S.favCustom.push({ label: label, name: S.active.name || label, address: S.active.address || '',
+                     lat: S.active.lat, lon: S.active.lon, profile: S.profile, savedAt: Date.now() });
+  saveStore(); renderCustomFavs();
   var btn = qs('#saveCustom');
   if (btn) { var orig = btn.textContent; btn.textContent = '✓ Saved!'; setTimeout(function(){ btn.textContent = orig; }, 1600); }
 }
-
 function removeCustomFav(idx) {
   if (!S.favCustom || idx < 0 || idx >= S.favCustom.length) return;
   var name = S.favCustom[idx].label || 'this place';
   if (!confirm('Remove "' + name + '" from custom places?')) return;
-  S.favCustom.splice(idx, 1);
-  saveStore();
-  renderCustomFavs();
+  S.favCustom.splice(idx, 1); saveStore(); renderCustomFavs();
 }
-
 // ── Render helpers ─────────────────────────────────────────────────────
-function renderAll(){renderProfile();renderProvider();renderBikeType();renderCurrent();renderFavs();renderCustomFavs();renderRecents();updateSaveBtn();}
+function renderAll(){renderProfile();renderProvider();renderBikeType();renderUnits();renderCurrent();renderFavs();renderCustomFavs();renderRecents();updateSaveBtn();}
+// v0.17.7: Units preference rendering
+function renderUnits(){
+  var btns=qsa('[data-units]');
+  for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-units')===S.unitsChoice?' on':'');
+}
 function renderBikeType(){
   var btns=qsa('[data-biketype]');
   for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-biketype')===S.valhallaBicycleType?' on':'');
@@ -853,9 +762,7 @@ function renderCurrent(){
   var n=qs('#destName'),a=qs('#destAddr');
   if(n)n.textContent=S.active.name||'Selected destination';
   if(a)a.textContent=S.active.address||'';
-  // Update add-custom button state whenever current changes
-  var addBtn = qs('#addCustomFavBtn');
-  if (addBtn) addBtn.disabled = false;
+  var addBtn = qs('#addCustomFavBtn'); if (addBtn) addBtn.disabled = false;
 }
 function renderFavs(){setFavItem('home','homeVal','pickHome');setFavItem('work','workVal','pickWork');}
 function setFavItem(key,valId,rowId){
@@ -885,7 +792,6 @@ function syncSliders(){
   if(ur){ur.value=S.valhallaUseRoads;if(urv)urv.textContent=S.valhallaUseRoads.toFixed(2);}
   if(uh){uh.value=S.valhallaUseHills;if(uhv)uhv.textContent=S.valhallaUseHills.toFixed(2);}
 }
-
 // ── Mapbox Search ──────────────────────────────────────────────────────
 function doSuggest(q){
   var tok=currentToken();
@@ -949,8 +855,6 @@ function renderSugs(sugs){
 function clearSugs(){var c=qs('#suggestions');if(c)c.innerHTML='';}
 function setStatus(msg,isErr){var el=qs('#srchStatus');if(!el)return;el.textContent=msg||'';el.className='srch-status'+(isErr?' err':'');}
 function currentToken(){var ti=qs('#tokenInput');return(ti?ti.value.trim():'')||S.token;}
-
-// ── Destination selection ──────────────────────────────────────────────
 function selectDest(dest,addRecent){
   S.active=dest;
   if(addRecent){
@@ -974,8 +878,6 @@ function saveFav(key){
   var btn=qs(key==='home'?'#saveHome':'#saveWork');
   if(btn){var o=btn.textContent;btn.textContent='\u2713 Saved!';setTimeout(function(){btn.textContent=o;},1600);}
 }
-
-// ── Save / Cancel ──────────────────────────────────────────────────────
 function doSave(){
   if(!S.active||!S.active.lat){alert('Choose a destination first.');return;}
   var tok=currentToken();
@@ -988,14 +890,12 @@ function doSave(){
   if(ur) S.valhallaUseRoads=parseFloat(ur.value)||0.25;
   if(uh) S.valhallaUseHills=parseFloat(uh.value)||0.10;
   var result={
-    mapboxToken:tok,stadiaToken:S.stadiaToken||'',provider:S.provider,profile:S.profile,
-    destName:S.active.name||'',destLat:S.active.lat,destLon:S.active.lon,
-    turnAlerts:S.turnAlerts,
-    junctionView:S.junctionView,  // v0.17.4
-    favHome:S.favs.home,
-    favWork:S.favs.work,
-    favCustom:S.favCustom,  // v0.17.3: include custom favs in save result
-    valhallaUseRoads:S.valhallaUseRoads,valhallaUseHills:S.valhallaUseHills,
+    mapboxToken:tok, stadiaToken:S.stadiaToken||'', provider:S.provider, profile:S.profile,
+    destName:S.active.name||'', destLat:S.active.lat, destLon:S.active.lon,
+    turnAlerts:S.turnAlerts, junctionView:S.junctionView,
+    unitsChoice:S.unitsChoice,   // v0.17.7: was missing — JS webviewclosed already reads this
+    favHome:S.favs.home, favWork:S.favs.work, favCustom:S.favCustom,
+    valhallaUseRoads:S.valhallaUseRoads, valhallaUseHills:S.valhallaUseHills,
     valhallaBicycleType:S.valhallaBicycleType
   };
   var returnTo=getParam('return_to','pebblejs://close#');
@@ -1007,18 +907,14 @@ function doCancel(){
   if(rt.indexOf('pebblejs://')!==0)rt='pebblejs://close#';
   document.location=rt;
 }
-
-// ── Event binding ──────────────────────────────────────────────────────
 function bindAll(){
   var si=qs('#search');
   if(si)si.addEventListener('input',function(){clearTimeout(debTimer);var q=this.value;if(!q.trim()){clearSugs();setStatus('');return;}debTimer=setTimeout(function(){doSuggest(q);},350);});
-
   var pb=qsa('[data-prof]');
   for(var i=0;i<pb.length;i++){(function(b){b.addEventListener('click',function(){
     S.profile=b.getAttribute('data-prof');renderProfile();
     if(S.active&&S.active.lat) schedulePreview();
   });})(pb[i]);}
-
   var provB=qsa('[data-prov]');
   for(var p=0;p<provB.length;p++){(function(b){b.addEventListener('click',function(){
     S.provider=b.getAttribute('data-prov');
@@ -1026,22 +922,23 @@ function bindAll(){
     saveStore();renderProvider();
     if(S.active&&S.active.lat) schedulePreview();
   });})(provB[p]);}
-
-  // v0.17.3: bike type now uses shared schedulePreview() debounce (was immediate)
   var btB=qsa('[data-biketype]');
   for(var bt=0;bt<btB.length;bt++){(function(b){b.addEventListener('click',function(){
     S.valhallaBicycleType=b.getAttribute('data-biketype');
     saveStore();renderBikeType();
     if(S.active&&S.active.lat&&S.provider==='stadia') schedulePreview();
   });})(btB[bt]);}
-
+  // v0.17.7: Units preference binding
+  var unitsB=qsa('[data-units]');
+  for(var u=0;u<unitsB.length;u++){(function(b){b.addEventListener('click',function(){
+    S.unitsChoice=b.getAttribute('data-units');
+    saveStore();renderUnits();
+  });})(unitsB[u]);}
   var stadiaInput=qs('#stadiaTokenInput');
   if(stadiaInput){
     stadiaInput.addEventListener('input',function(){S.stadiaToken=this.value.trim();});
     stadiaInput.addEventListener('change',function(){S.stadiaToken=this.value.trim();saveStore();});
   }
-
-  // v0.17.3: sliders use schedulePreview() — same debounce as bike type
   var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
   function onSliderChange() {
     if (ur) S.valhallaUseRoads = parseFloat(ur.value) || 0.25;
@@ -1050,25 +947,19 @@ function bindAll(){
   }
   if(ur){ur.addEventListener('input',function(){if(urv)urv.textContent=(parseFloat(this.value)||0.25).toFixed(2);onSliderChange();});}
   if(uh){uh.addEventListener('input',function(){if(uhv)uhv.textContent=(parseFloat(this.value)||0.10).toFixed(2);onSliderChange();});}
-
   var ph=qs('#pickHome');if(ph)ph.addEventListener('click',function(){if(S.favs.home)selectDest(S.favs.home,false);});
   var pw=qs('#pickWork');if(pw)pw.addEventListener('click',function(){if(S.favs.work)selectDest(S.favs.work,false);});
   var sh=qs('#saveHome');if(sh)sh.addEventListener('click',function(){saveFav('home');});
   var sw=qs('#saveWork');if(sw)sw.addEventListener('click',function(){saveFav('work');});
-
-  // v0.17.3: Save as Custom button
   var sc=qs('#saveCustom');if(sc)sc.addEventListener('click',function(){addCustomFav();});
-  // Add custom fav from quick destinations section button
   var acf=qs('#addCustomFavBtn');if(acf)acf.addEventListener('click',function(){addCustomFav();});
-
   var ta=qs('#turnAlerts');if(ta)ta.addEventListener('change',function(){S.turnAlerts=this.checked;saveStore();});
-  var jv=qs('#junctionView');if(jv)jv.addEventListener('change',function(){S.junctionView=this.checked;saveStore();});  // v0.17.4
+  var jv=qs('#junctionView');if(jv)jv.addEventListener('change',function(){S.junctionView=this.checked;saveStore();});
   var at=qs('#advToggle'),ab=qs('#advBody'),ar=qs('#advArrow');
   if(at&&ab)at.addEventListener('click',function(){var o=ab.classList.toggle('open');if(ar)ar.textContent=o?'\u2039':'\u203a';});
   var sb=qs('#saveBtn');if(sb)sb.addEventListener('click',doSave);
   var cb=qs('#cancelBtn');if(cb)cb.addEventListener('click',doCancel);
 }
-
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 }());
 </script>
