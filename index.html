@@ -6,7 +6,15 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.7 config page
+<!-- GlanceNav v0.17.8 config page
+     Changes from v0.17.7 (v0.17.8):
+     • Junction view relabelled "experimental", default OFF for new users
+       (existing users keep their saved setting).
+     • New toggle: Direction haptics (default ON).
+     • Routing provider / Stadia / Valhalla controls hidden behind a dev
+       flag (tap the GlanceNav title 5 times, or shown if Stadia is active).
+     • Ride debug log: toggle + viewer with Copy / Share (Advanced).
+     • ETA text: "ETA 8:16" (no "~").
      Changes from v0.17.6 (v0.17.7):
      • Units preference: Automatic / Metric / Imperial segmented control.
        Infrastructure was already correct in the JS layer (unitsChoice
@@ -132,6 +140,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 .token-input:focus{border-color:#007AFF;background:#fff}
 .adv-hint{font-size:12px;color:#8e8e93;margin-top:8px;line-height:1.45}
 .end-space{height:16px}
+.dbg-box{width:100%;height:180px;font-family:'Courier New',monospace;font-size:11px;border:1.5px solid #e5e5ea;border-radius:10px;padding:8px;background:#f2f2f7;color:#111;white-space:pre;overflow:auto}
+.dbg-row{display:flex;gap:8px;margin-top:8px}
+.dbg-btn{flex:1;padding:10px;font-size:14px;font-weight:600;border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;background:#fff}
+.dev-note{font-size:11px;color:#8e8e93;padding:4px 16px 0}
 .save-bar{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:10px 16px env(safe-area-inset-bottom,12px);background:rgba(242,242,247,.96);border-top:1px solid #e5e5ea;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
 .btn-cancel{width:90px;height:50px;font-size:16px;font-weight:600;border:none;border-radius:12px;background:#e5e5ea;color:#3c3c43;cursor:pointer;flex-shrink:0}
 .btn-cancel:active{opacity:.7}
@@ -226,7 +238,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <button class="profile-btn" data-prof="driving">🚗 Driving</button>
   </div>
 </div>
-<div class="section" style="margin-top:20px">
+<div id="devRouting" style="display:none">
+<div class="dev-note">Developer options</div>
+<div class="section" style="margin-top:6px">
   <div class="sec-hdr">Routing Provider</div>
   <div class="profile-row">
     <button class="profile-btn" data-prov="mapbox">Mapbox</button>
@@ -268,9 +282,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   <div class="slider-row">
     <div class="slider-label-row"><span class="slider-label">Hill tolerance</span><span class="slider-value" id="useHillsVal">0.10</span></div>
     <input type="range" id="useHills" min="0" max="1" step="0.05" value="0.10">
-    <div class="slider-ends"><span>Avoid hills</span><span>Welcome hills</span></div>
+          <div class="slider-ends"><span>Avoid hills</span><span>Welcome hills</span></div>
+    </div>
   </div>
-</div>
+</div><!-- /devRouting -->
 <!-- v0.17.7: Units preference — Automatic / Metric / Imperial -->
 <div class="section" style="margin-top:20px">
   <div class="sec-hdr">Units</div>
@@ -288,14 +303,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <input type="checkbox" id="turnAlerts" checked>
     <span class="toggle-track"></span>
   </label>
+    <label class="toggle-row" for="dirHaptics" style="border-top:1px solid #f2f2f7">
+    <span class="toggle-label">Direction haptics</span>
+    <input type="checkbox" id="dirHaptics" checked>
+    <span class="toggle-track"></span>
+  </label>
   <label class="toggle-row" for="junctionView" style="border-top:1px solid #f2f2f7">
-    <span class="toggle-label">Junction view</span>
-    <input type="checkbox" id="junctionView" checked>
+    <span class="toggle-label">Junction view <span class="stadia-badge" style="background:#ff9500">EXPERIMENTAL</span></span>
+    <input type="checkbox" id="junctionView">
     <span class="toggle-track"></span>
   </label>
 </div>
 <p class="sec-hint">Turn alerts: colour flash and vibration before each turn. The close-range vibration always fires.</p>
-<p class="sec-hint" style="margin-top:0">Junction view: shows a schematic road diagram behind the turn arrow at 150 m, helping distinguish forks and slight turns from straight-ahead roads.</p>
+<p class="sec-hint" style="margin-top:0">Direction haptics: the final buzz before a turn tells you which way. Right = long buzz first. Left = long buzz last.</p>
+<p class="sec-hint" style="margin-top:0">Junction view: at tricky junctions (forks, slight turns, busy intersections) the arrow is drawn through the real road layout, with the other roads shown as dark stubs. Colour watches only.</p>
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
   <span class="adv-arrow" id="advArrow">›</span>
@@ -304,7 +325,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   <div class="adv-lbl">Mapbox public token</div>
   <input id="tokenInput" class="token-input" type="text"
          placeholder="pk.eyJ..." autocapitalize="none" autocorrect="off" spellcheck="false">
-  <div class="adv-hint">Required for map tiles and search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
+    <div class="adv-hint">Required for map tiles and search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
+  <div class="adv-lbl" style="margin-top:18px">Ride debug log</div>
+  <label class="toggle-row" for="debugLog" style="padding-left:0;padding-right:0">
+    <span class="toggle-label">Record last ride</span>
+    <input type="checkbox" id="debugLog" checked>
+    <span class="toggle-track"></span>
+  </label>
+  <div class="adv-hint" style="margin-top:0">Stays on your phone. Records position, step, distance and junction data from your most recent ride. Copy or share it to report a problem.</div>
+  <pre class="dbg-box" id="dbgBox">No ride recorded yet.</pre>
+  <div class="dbg-row">
+    <button class="dbg-btn" id="dbgCopy">Copy log</button>
+    <button class="dbg-btn" id="dbgShare">Share…</button>
+  </div>
 </div>
 <div class="end-space"></div>
 <div class="save-bar">
@@ -321,7 +354,7 @@ var S = {
   token:'', stadiaToken:'', provider:'mapbox', profile:'cycling',
   active:null, favs:{home:null,work:null},
   favCustom: [],
-  recents:[], turnAlerts:true, junctionView:true,
+    recents:[], turnAlerts:true, junctionView:false, dirHaptics:true, debugLog:true, devMode:false, debugText:'',
   unitsChoice: 'auto',   // v0.17.7: Automatic / Metric / Imperial preference
   valhallaUseRoads:0.25, valhallaUseHills:0.10, valhallaBicycleType:'Hybrid',
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
@@ -343,13 +376,14 @@ function getParam(n,fb){var m=location.search.match(new RegExp('[?&]'+n+'=([^&]*
 function pad2(n){return n<10?'0'+n:''+n;}
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
-  return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,junctionView:true,
+    return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,junctionView:false,dirHaptics:true,debugLog:true,devMode:false,
          unitsChoice:'auto',provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
 }
 function saveStore(){
   try{localStorage.setItem(STORE_KEY,JSON.stringify({
     favs:S.favs, favCustom:S.favCustom, recents:S.recents,
-    turnAlerts:S.turnAlerts, junctionView:S.junctionView,
+        turnAlerts:S.turnAlerts, junctionView:S.junctionView,
+    dirHaptics:S.dirHaptics, debugLog:S.debugLog, devMode:S.devMode,   // v0.17.8
     unitsChoice:S.unitsChoice,  // v0.17.7
     provider:S.provider, stadiaToken:S.stadiaToken,
     valhallaUseRoads:S.valhallaUseRoads, valhallaUseHills:S.valhallaUseHills,
@@ -363,7 +397,10 @@ function init(){
   S.favCustom=Array.isArray(st.favCustom)?st.favCustom:[];
   S.recents=st.recents||[];
   S.turnAlerts=st.turnAlerts!==false;
-  S.junctionView=st.junctionView!==false;
+    S.junctionView=st.junctionView===true;
+  S.dirHaptics=st.dirHaptics!==false;
+  S.debugLog=st.debugLog!==false;
+  S.devMode=st.devMode===true;
   S.unitsChoice=validUnitsChoice(st.unitsChoice)?st.unitsChoice:'auto';  // v0.17.7
   S.provider=st.provider==='stadia'?'stadia':'mapbox';
   S.stadiaToken=st.stadiaToken||'';
@@ -380,7 +417,10 @@ function init(){
       if(inc.provider==='stadia')      S.provider='stadia';
       else if(inc.provider==='mapbox') S.provider='mapbox';
       if(typeof inc.turnAlerts!=='undefined')  S.turnAlerts=inc.turnAlerts!==false;
-      if(typeof inc.junctionView!=='undefined') S.junctionView=inc.junctionView!==false;
+            if(typeof inc.junctionView!=='undefined') S.junctionView=inc.junctionView===true;
+      if(typeof inc.dirHaptics!=='undefined')   S.dirHaptics=inc.dirHaptics!==false;
+      if(typeof inc.debugLog!=='undefined')     S.debugLog=inc.debugLog!==false;
+      if(typeof inc.debug==='string')           S.debugText=inc.debug;
       if(typeof inc.valhallaUseRoads==='number') S.valhallaUseRoads=inc.valhallaUseRoads;
       if(typeof inc.valhallaUseHills==='number') S.valhallaUseHills=inc.valhallaUseHills;
       if(validBikeType(inc.valhallaBicycleType)) S.valhallaBicycleType=inc.valhallaBicycleType;
@@ -398,7 +438,10 @@ function init(){
   }
   var ti=qs('#tokenInput');        if(ti)  ti.value=S.token;
   var ta=qs('#turnAlerts');        if(ta)  ta.checked=S.turnAlerts;
-  var jvi=qs('#junctionView');     if(jvi) jvi.checked=S.junctionView;
+    var jvi=qs('#junctionView');     if(jvi) jvi.checked=S.junctionView;
+  var dhi=qs('#dirHaptics');       if(dhi) dhi.checked=S.dirHaptics;
+  var dli=qs('#debugLog');         if(dli) dli.checked=S.debugLog;
+  var dbx=qs('#dbgBox');           if(dbx && S.debugText) dbx.textContent=S.debugText;
   var sti=qs('#stadiaTokenInput'); if(sti) sti.value=S.stadiaToken;
   syncSliders();
   renderAll();
@@ -607,7 +650,7 @@ function initNavProgress() {
   var etaEl = qs('#navProgressEta');
   if (etaEl && S.etaMinsHandoff) {
     var arr = new Date(Date.now() + S.etaMinsHandoff * 60000);
-    etaEl.textContent = 'ETA ~' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
+    etaEl.textContent = 'ETA ' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
   }
   if (!tok || tok.indexOf('pk.') !== 0) return;
   var hasGPS = S.currentLat !== null && S.currentLon !== null;
@@ -617,7 +660,7 @@ function initNavProgress() {
     function(coords, duration) {
       if (duration !== null && etaEl) {
         var arr2 = new Date(Date.now() + duration * 1000);
-        etaEl.textContent = 'ETA ~' + pad2(arr2.getHours()) + ':' + pad2(arr2.getMinutes());
+        etaEl.textContent = 'ETA ' + pad2(arr2.getHours()) + ':' + pad2(arr2.getMinutes());
       }
     }
   );
@@ -655,7 +698,7 @@ function showRoutePreview(dest) {
           var routeCount = 1 + (alternates ? alternates.length : 0);
           var routeStr = routeCount > 1 ? '  \u00b7  ' + routeCount + ' routes' : '';
           etaSub.innerHTML = 'from ' + esc(originLabel) + badge2
-            + '  \u00b7  ETA ~' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes())
+            + '  \u00b7  ETA ' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes())
             + routeStr;
         }
       } else {
@@ -751,6 +794,7 @@ function renderProfile(){
 function renderProvider(){
   var btns=qsa('[data-prov]');
   for(var i=0;i<btns.length;i++) btns[i].className='profile-btn'+(btns[i].getAttribute('data-prov')===S.provider?' on':'');
+    var dev=qs('#devRouting'); if(dev) dev.style.display=(S.devMode||S.provider==='stadia')?'':'none';
   var ss=qs('#stadiaSection'),vs=qs('#valhallaSection'),is=S.provider==='stadia';
   if(ss)ss.style.display=is?'':'none';
   if(vs)vs.style.display=is?'':'none';
@@ -892,8 +936,9 @@ function doSave(){
   var result={
     mapboxToken:tok, stadiaToken:S.stadiaToken||'', provider:S.provider, profile:S.profile,
     destName:S.active.name||'', destLat:S.active.lat, destLon:S.active.lon,
-    turnAlerts:S.turnAlerts, junctionView:S.junctionView,
-    unitsChoice:S.unitsChoice,   // v0.17.7: was missing — JS webviewclosed already reads this
+        turnAlerts:S.turnAlerts, junctionView:S.junctionView,
+    dirHaptics:S.dirHaptics, debugLog:S.debugLog, devMode:S.devMode,   // v0.17.8
+    unitsChoice:S.unitsChoice,  // v0.17.7: was missing — JS webviewclosed already reads this
     favHome:S.favs.home, favWork:S.favs.work, favCustom:S.favCustom,
     valhallaUseRoads:S.valhallaUseRoads, valhallaUseHills:S.valhallaUseHills,
     valhallaBicycleType:S.valhallaBicycleType
@@ -954,7 +999,28 @@ function bindAll(){
   var sc=qs('#saveCustom');if(sc)sc.addEventListener('click',function(){addCustomFav();});
   var acf=qs('#addCustomFavBtn');if(acf)acf.addEventListener('click',function(){addCustomFav();});
   var ta=qs('#turnAlerts');if(ta)ta.addEventListener('change',function(){S.turnAlerts=this.checked;saveStore();});
-  var jv=qs('#junctionView');if(jv)jv.addEventListener('change',function(){S.junctionView=this.checked;saveStore();});
+    var jv=qs('#junctionView');if(jv)jv.addEventListener('change',function(){S.junctionView=this.checked;saveStore();});
+  var dh=qs('#dirHaptics');if(dh)dh.addEventListener('change',function(){S.dirHaptics=this.checked;saveStore();});
+  var dl=qs('#debugLog');if(dl)dl.addEventListener('change',function(){S.debugLog=this.checked;saveStore();});
+  // v0.17.8: debug log export
+  var dc=qs('#dbgCopy');if(dc)dc.addEventListener('click',function(){
+    var t=S.debugText||''; if(!t){alert('No ride recorded yet.');return;}
+    function fallback(){var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');alert('Log copied.');}catch(e){alert('Select the text in the box and copy it manually.');}
+      document.body.removeChild(ta);}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){alert('Log copied.');},fallback);}else fallback();
+  });
+  var dsh=qs('#dbgShare');if(dsh)dsh.addEventListener('click',function(){
+    var t=S.debugText||''; if(!t){alert('No ride recorded yet.');return;}
+    if(navigator.share){navigator.share({title:'GlanceNav ride log',text:t}).catch(function(){});}
+    else alert('Sharing is not available here. Use Copy log instead.');
+  });
+  // v0.17.8: developer options unlock — tap the title 5 times
+  var taps=0,tapTimer=null,ht=qs('.hdr-title');
+  if(ht)ht.addEventListener('click',function(){
+    taps++; clearTimeout(tapTimer); tapTimer=setTimeout(function(){taps=0;},1500);
+    if(taps>=5){taps=0;S.devMode=!S.devMode;saveStore();renderProvider();alert('Developer options '+(S.devMode?'shown':'hidden')+'.');}
+  });
   var at=qs('#advToggle'),ab=qs('#advBody'),ar=qs('#advArrow');
   if(at&&ab)at.addEventListener('click',function(){var o=ab.classList.toggle('open');if(ar)ar.textContent=o?'\u2039':'\u203a';});
   var sb=qs('#saveBtn');if(sb)sb.addEventListener('click',doSave);
