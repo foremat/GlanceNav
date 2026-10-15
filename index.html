@@ -2,37 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="referrer" content="no-referrer">
+<script>
+// Consume fragment before any third-party library is loaded. Export mode loads none.
+(function(){var raw='';try{var m=location.hash.match(/(?:^#|&)s=([^&]*)/);if(m)raw=decodeURIComponent(m[1]);window.__GN_HANDOFF=raw?JSON.parse(raw):null;}catch(e){window.__GN_HANDOFF=null;}
+try{if(location.hash)history.replaceState(null,'',location.pathname+location.search);}catch(e){} }());
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes">
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.8 config page
-     Changes from v0.17.7 (v0.17.8):
-     • Junction view relabelled "experimental", default OFF for new users
-       (existing users keep their saved setting).
-     • New toggle: Direction haptics (default ON).
-     • Routing provider / Stadia / Valhalla controls hidden behind a dev
-       flag (tap the GlanceNav title 5 times, or shown if Stadia is active).
-     • Ride debug log: toggle + viewer with Copy / Share (Advanced).
-     • ETA text: "ETA 8:16" (no "~").
-     Changes from v0.17.6 (v0.17.7):
-     • Units preference: Automatic / Metric / Imperial segmented control.
-       Infrastructure was already correct in the JS layer (unitsChoice
-       sent in handoff, read in webviewclosed). This page was missing
-       S.unitsChoice state, the UI section, and the doSave() inclusion.
-     Changes from v0.17.5 (v0.17.6):
-     • No config page changes in v0.17.6.
-     Changes from v0.17.4 (v0.17.5):
-     • Alternate routes shown in preview map for Mapbox provider (parity with Valhalla)
-     Changes from v0.17.3 (v0.17.4):
-     • Junction view toggle
-     Changes from v0.17.2 (v0.17.3):
-     • Custom favourites UI
-     • Alternative routes Valhalla preview
-     • Preview debounce unified
--->
-<link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet'>
-<script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+<!-- GlanceNav v0.17.9: fragment settings, explicit isolated diagnostic export,
+     lazy map loading, preference-only save, authoritative favourites and guarded requests. -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.45;color:#111;background:#f2f2f7;-webkit-text-size-adjust:100%;padding-bottom:88px}
@@ -247,7 +228,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <button class="profile-btn" data-prov="stadia">Stadia <span class="stadia-badge">BETA</span></button>
   </div>
 </div>
-<p class="sec-hint">Stadia uses Valhalla routing — better cycling path preference and roundabout detection for NZ. Search always uses Mapbox.</p>
+<p class="sec-hint">Stadia uses Valhalla routing with additional cycling preferences. Search uses Mapbox. Provider permissions and costs need checking before external release.</p>
 <div id="stadiaSection" class="section" style="margin-top:0;display:none">
   <div class="sec-hdr">Stadia API Key</div>
   <div style="padding:0 16px 16px">
@@ -277,7 +258,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   <div class="slider-row">
     <div class="slider-label-row"><span class="slider-label">Road preference</span><span class="slider-value" id="useRoadsVal">0.25</span></div>
     <input type="range" id="useRoads" min="0" max="1" step="0.05" value="0.25">
-    <div class="slider-ends"><span>Paths only</span><span>Roads only</span></div>
+    <div class="slider-ends"><span>Prefer paths</span><span>Prefer roads</span></div>
   </div>
   <div class="slider-row">
     <div class="slider-label-row"><span class="slider-label">Hill tolerance</span><span class="slider-value" id="useHillsVal">0.10</span></div>
@@ -314,9 +295,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <span class="toggle-track"></span>
   </label>
 </div>
-<p class="sec-hint">Turn alerts: colour flash and vibration before each turn. The close-range vibration always fires.</p>
+<p class="sec-hint">Turn alerts: colour emphasis and vibration before turns. Off disables turn vibrations; arrival and signal-loss notifications remain separate.</p>
 <p class="sec-hint" style="margin-top:0">Direction haptics: the final buzz before a turn tells you which way. Right = long buzz first. Left = long buzz last.</p>
-<p class="sec-hint" style="margin-top:0">Junction view: at tricky junctions (forks, slight turns, busy intersections) the arrow is drawn through the real road layout, with the other roads shown as dark stubs. Colour watches only.</p>
+<p class="sec-hint" style="margin-top:0">Junction view: at tricky junctions (forks, slight turns, busy intersections) the arrow uses available junction bearings, with the other roads shown as dark stubs. Colour watches only.</p>
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
   <span class="adv-arrow" id="advArrow">›</span>
@@ -332,11 +313,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <input type="checkbox" id="debugLog" checked>
     <span class="toggle-track"></span>
   </label>
-  <div class="adv-hint" style="margin-top:0">Stays on your phone. Records position, step, distance and junction data from your most recent ride. Copy or share it to report a problem.</div>
+  <div class="adv-hint" style="margin-top:0">Recorded locally in the phone runtime. Logs contain precise location. Opening an export is a separate, explicit action; the export page loads no map libraries. Delete the recording when no longer needed.</div>
   <pre class="dbg-box" id="dbgBox">No ride recorded yet.</pre>
   <div class="dbg-row">
-    <button class="dbg-btn" id="dbgCopy">Copy log</button>
-    <button class="dbg-btn" id="dbgShare">Share…</button>
+    <button class="dbg-btn" id="dbgExport">Open log export</button>
+    <button class="dbg-btn" id="dbgDelete">Delete log</button>
+    <button class="dbg-btn" id="dbgCopy" style="display:none">Copy log</button>
+    <button class="dbg-btn" id="dbgShare" style="display:none">Share…</button>
   </div>
 </div>
 <div class="end-space"></div>
@@ -359,10 +342,13 @@ var S = {
   valhallaUseRoads:0.25, valhallaUseHills:0.10, valhallaBicycleType:'Hybrid',
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
 };
-var glInstances = {}, routeXhrs = {};
+var glInstances = {}, routeXhrs = {}, retrieveXhr=null, selectionGeneration=0, mapGeneration={}, libraryLoading=false, libraryCallbacks=[];
 var sessionTok = uuid4(), debTimer = null, pendXhr = null;
 var previewTimer = null;
 function schedulePreview() {
+  mapGeneration.preview=(mapGeneration.preview||0)+1;
+  if(routeXhrs.preview){var old=routeXhrs.preview;routeXhrs.preview=null;try{old.abort();}catch(e){}}
+
   clearTimeout(previewTimer);
   if (S.active && S.active.lat) {
     previewTimer = setTimeout(function() { showRoutePreview(S.active); }, 600);
@@ -372,7 +358,8 @@ function uuid4(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,f
 function qs(s){return document.querySelector(s);}
 function qsa(s){return document.querySelectorAll(s);}
 function esc(v){return String(v||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function getParam(n,fb){var m=location.search.match(new RegExp('[?&]'+n+'=([^&]*)'));return m?decodeURIComponent(m[1].replace(/\+/g,' ')):(fb||'');}
+function getParam(n,fb){try{var m=location.search.match(new RegExp('[?&]'+n+'=([^&]*)'));return m?decodeURIComponent(m[1].replace(/\+/g,' ')):(fb||'');}catch(e){return fb||'';}}
+function finiteSlider(v,f){var n=parseFloat(v);return isFinite(n)?Math.max(0,Math.min(1,n)):f;}
 function pad2(n){return n<10?'0'+n:''+n;}
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
@@ -407,12 +394,15 @@ function init(){
   S.valhallaUseRoads=typeof st.valhallaUseRoads==='number'?st.valhallaUseRoads:0.25;
   S.valhallaUseHills=typeof st.valhallaUseHills==='number'?st.valhallaUseHills:0.10;
   S.valhallaBicycleType=validBikeType(st.valhallaBicycleType)?st.valhallaBicycleType:'Hybrid';
-  var raw=getParam('s','');
+  var raw=window.__GN_HANDOFF?JSON.stringify(window.__GN_HANDOFF):'';window.__GN_HANDOFF=null;
   if(raw){
     try{
       var inc=JSON.parse(raw);
-      if(inc.token)         S.token=inc.token;
-      if(inc.stadiaToken)   S.stadiaToken=inc.stadiaToken;
+      if(inc.exportOnly){renderExportOnly(String(inc.debug||''));return;}
+      if(inc.favHome!==undefined)S.favs.home=inc.favHome;
+      if(inc.favWork!==undefined)S.favs.work=inc.favWork;
+      if(typeof inc.token==='string')S.token=inc.token;
+      if(typeof inc.stadiaToken==='string')S.stadiaToken=inc.stadiaToken;
       if(inc.profile)       S.profile=inc.profile;
       if(inc.provider==='stadia')      S.provider='stadia';
       else if(inc.provider==='mapbox') S.provider='mapbox';
@@ -447,7 +437,7 @@ function init(){
   renderAll();
   bindAll();
   initNavProgress();
-  if(S.active&&S.active.lat){ renderCurrent(); showRoutePreview(S.active); }
+  if(S.active&&S.active.lat){renderCurrent();if(!S.navigating)showRoutePreview(S.active);}
 }
 // ── Polyline6 decoder ─────────────────────────────────────────────────
 function decodePolyline6(str) {
@@ -504,8 +494,8 @@ function fetchPreviewRouteMapbox(id, oLon, oLat, dLon, dLat, tok, callback) {
     } catch(e) { callback(null, null, null, null); }
   };
   xhr.onerror = xhr.ontimeout = function() {
-    if (routeXhrs[id] === xhr) routeXhrs[id] = null;
-    callback(null, null, null, null);
+    if(routeXhrs[id]!==xhr)return;routeXhrs[id]=null;
+    callback(null,null,null,null);
   };
   xhr.send();
 }
@@ -561,13 +551,23 @@ function fetchPreviewRouteValhalla(id, oLon, oLat, dLon, dLat, callback) {
     } catch(e) { callback(null, null, null, null); }
   };
   xhr.onerror = xhr.ontimeout = function() {
-    if (routeXhrs[id] === xhr) routeXhrs[id] = null;
-    callback(null, null, null, null);
+    if(routeXhrs[id]!==xhr)return;routeXhrs[id]=null;
+    callback(null,null,null,null);
   };
   xhr.send();
 }
 // ── GL map ────────────────────────────────────────────────────────────
-function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady) {
+function loadMapLibrary(cb){
+  if(typeof mapboxgl!=='undefined'){cb(true);return;}libraryCallbacks.push(cb);if(libraryLoading)return;libraryLoading=true;
+  var link=document.createElement('link');link.rel='stylesheet';link.href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';document.head.appendChild(link);
+  var script=document.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js';script.referrerPolicy='no-referrer';
+  function done(ok){libraryLoading=false;var callbacks=libraryCallbacks;libraryCallbacks=[];callbacks.forEach(function(f){f(ok);});}
+  script.onload=function(){done(true);};script.onerror=function(){done(false);};document.head.appendChild(script);
+}
+function initGLMap(id, tok, oLon, oLat, dLon, dLat, onRouteReady, libraryAttempted) {
+  var gen=(mapGeneration[id]||0)+1;mapGeneration[id]=gen;
+  if(typeof mapboxgl==='undefined' && !libraryAttempted){loadMapLibrary(function(){if(mapGeneration[id]===gen)initGLMap(id,tok,oLon,oLat,dLon,dLat,onRouteReady,true);});return;}
+
   var wrapperId = id === 'nav' ? 'navProgressMapWrap' : 'previewMapWrap';
   var innerId   = id + '-gl-inner';
   var wrapEl    = qs('#' + wrapperId);
@@ -641,29 +641,10 @@ function fallbackStaticImage(wrapEl, tok, dLon, dLat) {
     + dLon + ',' + dLat + ',14,0/300x240@2x?access_token=' + encodeURIComponent(tok);
   wrapEl.appendChild(img);
 }
-function initNavProgress() {
-  if (!S.navigating || !S.active) return;
-  var sec = qs('#navProgressSection');
-  if (!sec) return;
-  sec.style.display = '';
-  var tok = currentToken();
-  var etaEl = qs('#navProgressEta');
-  if (etaEl && S.etaMinsHandoff) {
-    var arr = new Date(Date.now() + S.etaMinsHandoff * 60000);
-    etaEl.textContent = 'ETA ' + pad2(arr.getHours()) + ':' + pad2(arr.getMinutes());
-  }
-  if (!tok || tok.indexOf('pk.') !== 0) return;
-  var hasGPS = S.currentLat !== null && S.currentLon !== null;
-  var oLat = hasGPS ? S.currentLat : FALLBACK_LAT;
-  var oLon = hasGPS ? S.currentLon : FALLBACK_LON;
-  initGLMap('nav', tok, oLon, oLat, parseFloat(S.active.lon), parseFloat(S.active.lat),
-    function(coords, duration) {
-      if (duration !== null && etaEl) {
-        var arr2 = new Date(Date.now() + duration * 1000);
-        etaEl.textContent = 'ETA ' + pad2(arr2.getHours()) + ':' + pad2(arr2.getMinutes());
-      }
-    }
-  );
+function initNavProgress(){
+  if(!S.navigating)return;var sec=qs('#navProgressSection');if(sec)sec.style.display='';
+  var wrap=qs('#navProgressMapWrap');if(wrap)wrap.style.display='none';
+  var el=qs('#navProgressEta');if(el && S.etaMinsHandoff>0){var d=new Date(Date.now()+S.etaMinsHandoff*60000);el.textContent='ETA '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
 }
 function showRoutePreview(dest) {
   var prevSec = qs('#routePreview');
@@ -688,7 +669,8 @@ function showRoutePreview(dest) {
     function(coords, duration, distance, alternates) {
       if (duration !== null) {
         var mins    = Math.ceil(duration / 60);
-        var distStr = distance >= 1000 ? (distance / 1000).toFixed(1) + ' km' : Math.round(distance) + ' m';
+        var imperial=S.unitsChoice==='imperial'||(S.unitsChoice==='auto' && /^en-US/i.test(navigator.language||''));
+        var distStr=imperial?(distance>=160?(distance/1609.344).toFixed(1)+' mi':Math.round(distance*3.28084)+' ft'):(distance>=1000?(distance/1000).toFixed(1)+' km':Math.round(distance)+' m');
         var arr = new Date(Date.now() + duration * 1000);
         if (etaMain) etaMain.textContent = '~' + mins + ' min  \u00b7  ' + distStr;
         if (etaSub) {
@@ -830,7 +812,7 @@ function renderRecents(){
   var items=qsa('[data-rec]');
   for(var j=0;j<items.length;j++){(function(el){el.addEventListener('click',function(){var d=S.recents[parseInt(el.getAttribute('data-rec'),10)];if(d)selectDest(d,false);});})(items[j]);}
 }
-function updateSaveBtn(){var btn=qs('#saveBtn');if(btn)btn.disabled=!(S.active&&S.active.lat);}
+function updateSaveBtn(){var btn=qs('#saveBtn');if(btn){btn.disabled=false;btn.textContent='Save settings';}}
 function syncSliders(){
   var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
   if(ur){ur.value=S.valhallaUseRoads;if(urv)urv.textContent=S.valhallaUseRoads.toFixed(2);}
@@ -839,13 +821,13 @@ function syncSliders(){
 // ── Mapbox Search ──────────────────────────────────────────────────────
 function doSuggest(q){
   var tok=currentToken();
-  if(!tok||tok.indexOf('pk.')!==0){setStatus('Open ⚙ Advanced and add your Mapbox token first.',true);return;}
+  if(tok && tok.indexOf('pk.')!==0){setStatus('Open ⚙ Advanced and add your Mapbox token first.',true);return;}
   if(!q||q.trim().length<2){clearSugs();setStatus('');return;}
   if(pendXhr){pendXhr.abort();pendXhr=null;}
   setStatus('');
   var url='https://api.mapbox.com/search/searchbox/v1/suggest'
     +'?q='+encodeURIComponent(q.trim())+'&language=en&country=NZ'
-    +'&proximity='+encodeURIComponent(FALLBACK_LON+','+FALLBACK_LAT)
+    +'&proximity='+encodeURIComponent((S.currentLon!==null?S.currentLon:FALLBACK_LON)+','+(S.currentLat!==null?S.currentLat:FALLBACK_LAT))
     +'&limit=5&session_token='+encodeURIComponent(sessionTok)
     +'&access_token='+encodeURIComponent(tok);
   var xhr=new XMLHttpRequest();pendXhr=xhr;xhr.open('GET',url);xhr.timeout=8000;
@@ -859,11 +841,15 @@ function doSuggest(q){
   xhr.send();
 }
 function doRetrieve(mapboxId,suggName,suggAddr){
+  var generation=++selectionGeneration;
+  if(retrieveXhr)try{retrieveXhr.abort();}catch(e){}
+
   var tok=currentToken();setStatus('Getting details\u2026');clearSugs();
   var url='https://api.mapbox.com/search/searchbox/v1/retrieve/'+encodeURIComponent(mapboxId)
     +'?session_token='+encodeURIComponent(sessionTok)+'&access_token='+encodeURIComponent(tok);
-  var xhr=new XMLHttpRequest();xhr.open('GET',url);xhr.timeout=8000;
+  var xhr=new XMLHttpRequest();retrieveXhr=xhr;xhr.open('GET',url);xhr.timeout=8000;
   xhr.onload=function(){
+    if(generation!==selectionGeneration || retrieveXhr!==xhr)return;retrieveXhr=null;
     if(xhr.status<200||xhr.status>=300){setStatus('Error '+xhr.status+'.',true);return;}
     try{
       var data=JSON.parse(xhr.responseText),f=data.features&&data.features[0];
@@ -876,8 +862,8 @@ function doRetrieve(mapboxId,suggName,suggAddr){
       var si=qs('#search');if(si)si.value='';
     }catch(e){setStatus('Could not read destination details.',true);}
   };
-  xhr.onerror=function(){setStatus('Network error.',true);};
-  xhr.ontimeout=function(){setStatus('Request timed out.',true);};
+  xhr.onerror=function(){if(generation!==selectionGeneration)return;setStatus('Network error.',true);};
+  xhr.ontimeout=function(){if(generation!==selectionGeneration)return;setStatus('Request timed out.',true);};
   xhr.send();
 }
 var FT_ICON={poi:'📍',address:'🏠',place:'🏙️',street:'🛣️',neighborhood:'🏘️',locality:'🏙️'};
@@ -898,8 +884,9 @@ function renderSugs(sugs){
 }
 function clearSugs(){var c=qs('#suggestions');if(c)c.innerHTML='';}
 function setStatus(msg,isErr){var el=qs('#srchStatus');if(!el)return;el.textContent=msg||'';el.className='srch-status'+(isErr?' err':'');}
-function currentToken(){var ti=qs('#tokenInput');return(ti?ti.value.trim():'')||S.token;}
+function currentToken(){var ti=qs('#tokenInput');return ti?ti.value.trim():S.token;}
 function selectDest(dest,addRecent){
+  selectionGeneration++;if(retrieveXhr){try{retrieveXhr.abort();}catch(e){}retrieveXhr=null;}
   S.active=dest;
   if(addRecent){
     var next=[dest],old=S.recents||[];
@@ -922,20 +909,28 @@ function saveFav(key){
   var btn=qs(key==='home'?'#saveHome':'#saveWork');
   if(btn){var o=btn.textContent;btn.textContent='\u2713 Saved!';setTimeout(function(){btn.textContent=o;},1600);}
 }
+function closeAction(action){document.location='pebblejs://close#'+encodeURIComponent(JSON.stringify({action:action}));}
+function renderExportOnly(text){
+  document.body.innerHTML='';var title=document.createElement('h2');title.textContent='GlanceNav ride log';title.style.padding='16px';document.body.appendChild(title);
+  var note=document.createElement('p');note.textContent='Contains precise location. Only share with someone you trust. This export page loads no map libraries.';note.style.padding='16px';document.body.appendChild(note);
+  var box=document.createElement('textarea');box.value=text;box.readOnly=true;box.className='dbg-box';box.style.height='55vh';document.body.appendChild(box);
+  var copy=document.createElement('button');copy.className='dbg-btn';copy.textContent='Copy log';copy.onclick=function(){box.select();if(navigator.clipboard && navigator.clipboard.writeText)navigator.clipboard.writeText(text).catch(function(){document.execCommand('copy');});else document.execCommand('copy');};document.body.appendChild(copy);
+  var done=document.createElement('button');done.className='dbg-btn';done.textContent='Close';done.onclick=function(){document.location='pebblejs://close#';};document.body.appendChild(done);
+}
+
 function doSave(){
-  if(!S.active||!S.active.lat){alert('Choose a destination first.');return;}
   var tok=currentToken();
-  if(!tok||tok.indexOf('pk.')!==0){
+  if(tok && tok.indexOf('pk.')!==0){
     var ab=qs('#advBody');if(ab&&!ab.classList.contains('open')){ab.classList.add('open');var ar=qs('#advArrow');if(ar)ar.textContent='\u2039';}
     alert('A Mapbox public token (pk.) is required.\nOpen \u2699 Advanced to add one.');return;
   }
-  if(S.provider==='stadia'&&!S.stadiaToken){alert('Add your Stadia API key above,\nor switch back to Mapbox.');return;}
+  // Missing routing keys are reported when navigation starts; preferences can still save.
   var ur=qs('#useRoads'),uh=qs('#useHills');
-  if(ur) S.valhallaUseRoads=parseFloat(ur.value)||0.25;
-  if(uh) S.valhallaUseHills=parseFloat(uh.value)||0.10;
+  if(ur) S.valhallaUseRoads=finiteSlider(ur.value,0.25);
+  if(uh) S.valhallaUseHills=finiteSlider(uh.value,0.10);
   var result={
     mapboxToken:tok, stadiaToken:S.stadiaToken||'', provider:S.provider, profile:S.profile,
-    destName:S.active.name||'', destLat:S.active.lat, destLon:S.active.lon,
+    destName:S.active?(S.active.name||''):'',destLat:S.active?S.active.lat:undefined,destLon:S.active?S.active.lon:undefined,
         turnAlerts:S.turnAlerts, junctionView:S.junctionView,
     dirHaptics:S.dirHaptics, debugLog:S.debugLog, devMode:S.devMode,   // v0.17.8
     unitsChoice:S.unitsChoice,  // v0.17.7: was missing — JS webviewclosed already reads this
@@ -953,8 +948,10 @@ function doCancel(){
   document.location=rt;
 }
 function bindAll(){
+  var ex=qs('#dbgExport');if(ex)ex.addEventListener('click',function(){if(confirm('Open a separate export containing your precise ride location? Unsaved settings will not be applied.'))closeAction('exportDebug');});
+  var del=qs('#dbgDelete');if(del)del.addEventListener('click',function(){if(confirm('Delete the recorded ride log? Unsaved settings will not be applied.'))closeAction('deleteDebug');});
   var si=qs('#search');
-  if(si)si.addEventListener('input',function(){clearTimeout(debTimer);var q=this.value;if(!q.trim()){clearSugs();setStatus('');return;}debTimer=setTimeout(function(){doSuggest(q);},350);});
+  if(si)si.addEventListener('input',function(){selectionGeneration++;if(retrieveXhr){var oldRetrieve=retrieveXhr;retrieveXhr=null;try{oldRetrieve.abort();}catch(e){}}if(pendXhr){var oldSuggest=pendXhr;pendXhr=null;try{oldSuggest.abort();}catch(e){}}clearTimeout(debTimer);var q=this.value;if(!q.trim()){if(pendXhr){pendXhr.abort();pendXhr=null;}clearSugs();setStatus('');return;}debTimer=setTimeout(function(){doSuggest(q);},350);});
   var pb=qsa('[data-prof]');
   for(var i=0;i<pb.length;i++){(function(b){b.addEventListener('click',function(){
     S.profile=b.getAttribute('data-prof');renderProfile();
@@ -986,12 +983,12 @@ function bindAll(){
   }
   var ur=qs('#useRoads'),uh=qs('#useHills'),urv=qs('#useRoadsVal'),uhv=qs('#useHillsVal');
   function onSliderChange() {
-    if (ur) S.valhallaUseRoads = parseFloat(ur.value) || 0.25;
-    if (uh) S.valhallaUseHills = parseFloat(uh.value) || 0.10;
+    if (ur) S.valhallaUseRoads = finiteSlider(ur.value,0.25);
+    if (uh) S.valhallaUseHills = finiteSlider(uh.value,0.10);
     if (S.active && S.active.lat) schedulePreview();
   }
-  if(ur){ur.addEventListener('input',function(){if(urv)urv.textContent=(parseFloat(this.value)||0.25).toFixed(2);onSliderChange();});}
-  if(uh){uh.addEventListener('input',function(){if(uhv)uhv.textContent=(parseFloat(this.value)||0.10).toFixed(2);onSliderChange();});}
+  if(ur){ur.addEventListener('input',function(){if(urv)urv.textContent=finiteSlider(this.value,0.25).toFixed(2);onSliderChange();});}
+  if(uh){uh.addEventListener('input',function(){if(uhv)uhv.textContent=finiteSlider(this.value,0.10).toFixed(2);onSliderChange();});}
   var ph=qs('#pickHome');if(ph)ph.addEventListener('click',function(){if(S.favs.home)selectDest(S.favs.home,false);});
   var pw=qs('#pickWork');if(pw)pw.addEventListener('click',function(){if(S.favs.work)selectDest(S.favs.work,false);});
   var sh=qs('#saveHome');if(sh)sh.addEventListener('click',function(){saveFav('home');});
