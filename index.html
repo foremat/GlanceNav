@@ -6,7 +6,10 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.9.2 config page (built from v0.17.8)
+<!-- GlanceNav v0.17.9.3 config page
+     • Junction view is a 3-way choice: Off / When helpful / Always (testing).
+     • Hint text explains rider tags (long-press DOWN on the watch).
+     GlanceNav v0.17.9.2 config page (built from v0.17.8)
      • Reads settings handoff from the URL fragment (#s=, v0.17.9+ JS) or query (?s=).
      • Ride debug log section shows the phone diagnostics and ride log; Copy/Share in-page.
      • Home/Work come from the phone. Zero-value sliders kept. Preferences save without a destination.
@@ -312,15 +315,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <input type="checkbox" id="dirHaptics" checked>
     <span class="toggle-track"></span>
   </label>
-  <label class="toggle-row" for="junctionView" style="border-top:1px solid #f2f2f7">
+    <div style="border-top:1px solid #f2f2f7;padding:12px 16px 0">
     <span class="toggle-label">Junction view <span class="stadia-badge" style="background:#ff9500">EXPERIMENTAL</span></span>
-    <input type="checkbox" id="junctionView">
-    <span class="toggle-track"></span>
-  </label>
+  </div>
+  <div class="profile-row" style="padding-top:8px">
+    <button class="profile-btn" data-jv="0">Off</button>
+    <button class="profile-btn" data-jv="1">When helpful</button>
+    <button class="profile-btn" data-jv="2">Always</button>
+  </div>
 </div>
 <p class="sec-hint">Turn alerts: colour flash and vibration before each turn. The close-range vibration always fires.</p>
 <p class="sec-hint" style="margin-top:0">Direction haptics: the final buzz before a turn tells you which way. Right = long buzz first. Left = long buzz last.</p>
-<p class="sec-hint" style="margin-top:0">Junction view: at tricky junctions (forks, slight turns, busy intersections) the arrow is drawn through the real road layout, with the other roads shown as dark stubs. Colour watches only.</p>
+<p class="sec-hint" style="margin-top:0">Junction view draws your turn through the junction, with the other roads as dark stubs. "When helpful" shows it at forks, skewed turns and crossroads; "Always" shows it at every junction (for testing). Colour watches only.</p>
+<p class="sec-hint" style="margin-top:0">Tagging: long-press DOWN on the watch while navigating to mark a moment. The log keeps a minute either side of every tag.</p>
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
   <span class="adv-arrow" id="advArrow">›</span>
@@ -358,7 +365,7 @@ var S = {
   token:'', stadiaToken:'', provider:'mapbox', profile:'cycling',
   active:null, favs:{home:null,work:null},
   favCustom: [],
-    recents:[], turnAlerts:true, junctionView:false, dirHaptics:true, debugLog:true, devMode:false, debugText:'',
+    recents:[], turnAlerts:true, junctionView:false, jvMode:0, dirHaptics:true, debugLog:true, devMode:false, debugText:'',
   unitsChoice: 'auto',   // v0.17.7: Automatic / Metric / Imperial preference
   valhallaUseRoads:0.25, valhallaUseHills:0.10, valhallaBicycleType:'Hybrid',
   navigating:false, currentLat:null, currentLon:null, etaMinsHandoff:null
@@ -388,13 +395,13 @@ function fin(v,f){var n=parseFloat(v);return isFinite(n)?n:f;}
 function pad2(n){return n<10?'0'+n:''+n;}
 function loadStore(){
   try{var r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}
-    return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,junctionView:false,dirHaptics:true,debugLog:true,devMode:false,
+    return{favs:{home:null,work:null},favCustom:[],recents:[],turnAlerts:true,junctionView:false,jvMode:0,dirHaptics:true,debugLog:true,devMode:false,
          unitsChoice:'auto',provider:'mapbox',stadiaToken:'',valhallaUseRoads:0.25,valhallaUseHills:0.10,valhallaBicycleType:'Hybrid'};
 }
 function saveStore(){
   try{localStorage.setItem(STORE_KEY,JSON.stringify({
     favs:S.favs, favCustom:S.favCustom, recents:S.recents,
-        turnAlerts:S.turnAlerts, junctionView:S.junctionView,
+        turnAlerts:S.turnAlerts, junctionView:S.jvMode>0, jvMode:S.jvMode,
     dirHaptics:S.dirHaptics, debugLog:S.debugLog, devMode:S.devMode,   // v0.17.8
     unitsChoice:S.unitsChoice,  // v0.17.7
     provider:S.provider, stadiaToken:S.stadiaToken,
@@ -410,6 +417,7 @@ function init(){
   S.recents=st.recents||[];
   S.turnAlerts=st.turnAlerts!==false;
     S.junctionView=st.junctionView===true;
+  S.jvMode=(st.jvMode===0||st.jvMode===1||st.jvMode===2)?st.jvMode:(S.junctionView?1:0);
   S.dirHaptics=st.dirHaptics!==false;
   S.debugLog=st.debugLog!==false;
   S.devMode=st.devMode===true;
@@ -430,6 +438,7 @@ function init(){
       else if(inc.provider==='mapbox') S.provider='mapbox';
       if(typeof inc.turnAlerts!=='undefined')  S.turnAlerts=inc.turnAlerts!==false;
             if(typeof inc.junctionView!=='undefined') S.junctionView=inc.junctionView===true;
+        if(inc.jvMode===0||inc.jvMode===1||inc.jvMode===2) S.jvMode=inc.jvMode; else if(typeof inc.junctionView!=='undefined') S.jvMode=inc.junctionView===true?1:0;
       if(typeof inc.dirHaptics!=='undefined')   S.dirHaptics=inc.dirHaptics!==false;
       if(typeof inc.debugLog!=='undefined')     S.debugLog=inc.debugLog!==false;
       if(typeof inc.debug==='string')           S.debugText=inc.debug;
@@ -453,7 +462,7 @@ function init(){
   }
   var ti=qs('#tokenInput');        if(ti)  ti.value=S.token;
   var ta=qs('#turnAlerts');        if(ta)  ta.checked=S.turnAlerts;
-    var jvi=qs('#junctionView');     if(jvi) jvi.checked=S.junctionView;
+    
   var dhi=qs('#dirHaptics');       if(dhi) dhi.checked=S.dirHaptics;
   var dli=qs('#debugLog');         if(dli) dli.checked=S.debugLog;
   var dbx=qs('#dbgBox');
@@ -795,7 +804,8 @@ function removeCustomFav(idx) {
   S.favCustom.splice(idx, 1); saveStore(); renderCustomFavs();
 }
 // ── Render helpers ─────────────────────────────────────────────────────
-function renderAll(){renderProfile();renderProvider();renderBikeType();renderUnits();renderCurrent();renderFavs();renderCustomFavs();renderRecents();updateSaveBtn();}
+function renderJv(){var b=qsa('[data-jv]');for(var i=0;i<b.length;i++)b[i].className='profile-btn'+(parseInt(b[i].getAttribute('data-jv'),10)===S.jvMode?' on':'');}
+function renderAll(){renderJv();renderProfile();renderProvider();renderBikeType();renderUnits();renderCurrent();renderFavs();renderCustomFavs();renderRecents();updateSaveBtn();}
 // v0.17.7: Units preference rendering
 function renderUnits(){
   var btns=qsa('[data-units]');
@@ -953,7 +963,7 @@ function doSave(){
   var result={
     mapboxToken:tok, stadiaToken:S.stadiaToken||'', provider:S.provider, profile:S.profile,
     destName:S.active?(S.active.name||''):'', destLat:S.active?S.active.lat:undefined, destLon:S.active?S.active.lon:undefined,
-        turnAlerts:S.turnAlerts, junctionView:S.junctionView,
+        turnAlerts:S.turnAlerts, junctionView:S.jvMode>0, jvMode:S.jvMode,
     dirHaptics:S.dirHaptics, debugLog:S.debugLog, devMode:S.devMode,   // v0.17.8
     unitsChoice:S.unitsChoice,  // v0.17.7: was missing — JS webviewclosed already reads this
     favHome:S.favs.home, favWork:S.favs.work, favCustom:S.favCustom,
@@ -1016,7 +1026,7 @@ function bindAll(){
   var sc=qs('#saveCustom');if(sc)sc.addEventListener('click',function(){addCustomFav();});
   var acf=qs('#addCustomFavBtn');if(acf)acf.addEventListener('click',function(){addCustomFav();});
   var ta=qs('#turnAlerts');if(ta)ta.addEventListener('change',function(){S.turnAlerts=this.checked;saveStore();});
-    var jv=qs('#junctionView');if(jv)jv.addEventListener('change',function(){S.junctionView=this.checked;saveStore();});
+    var jvb=qsa('[data-jv]');for(var jj=0;jj<jvb.length;jj++){(function(b){b.addEventListener('click',function(){S.jvMode=parseInt(b.getAttribute('data-jv'),10);S.junctionView=S.jvMode>0;saveStore();renderJv();});})(jvb[jj]);}
   var dh=qs('#dirHaptics');if(dh)dh.addEventListener('change',function(){S.dirHaptics=this.checked;saveStore();});
   var dl=qs('#debugLog');if(dl)dl.addEventListener('change',function(){S.debugLog=this.checked;saveStore();});
   // v0.17.8: debug log export
