@@ -6,7 +6,9 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.9.3 config page
+<!-- GlanceNav v0.17.9.4 config page
+     • Ride log keeps the last 3 rides (newest first); label/hint updated.
+     GlanceNav v0.17.9.3 config page
      • Junction view is a 3-way choice: Off / When helpful / Always (testing).
      • Hint text explains rider tags (long-press DOWN on the watch).
      GlanceNav v0.17.9.2 config page (built from v0.17.8)
@@ -327,7 +329,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
 <p class="sec-hint">Turn alerts: colour flash and vibration before each turn. The close-range vibration always fires.</p>
 <p class="sec-hint" style="margin-top:0">Direction haptics: the final buzz before a turn tells you which way. Right = long buzz first. Left = long buzz last.</p>
 <p class="sec-hint" style="margin-top:0">Junction view draws your turn through the junction, with the other roads as dark stubs. "When helpful" shows it at forks, skewed turns and crossroads; "Always" shows it at every junction (for testing). Colour watches only.</p>
-<p class="sec-hint" style="margin-top:0">Tagging: long-press DOWN on the watch while navigating to mark a moment. The log keeps a minute either side of every tag.</p>
+<p class="sec-hint" style="margin-top:0">Tagging: long-press DOWN on the watch while navigating. "Tagging..." shows straight away; a double buzz and "Tagged" confirm it was logged (a long buzz means it failed). The log keeps a minute either side of every tag.</p>
 <div class="adv-toggle" id="advToggle">
   <span>⚙ Advanced</span>
   <span class="adv-arrow" id="advArrow">›</span>
@@ -339,11 +341,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div class="adv-hint">Required for map tiles and search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
   <div class="adv-lbl" style="margin-top:18px">Ride debug log</div>
   <label class="toggle-row" for="debugLog" style="padding-left:0;padding-right:0">
-    <span class="toggle-label">Record last ride</span>
+    <span class="toggle-label">Record rides (last 3)</span>
     <input type="checkbox" id="debugLog" checked>
     <span class="toggle-track"></span>
   </label>
-  <div class="adv-hint" style="margin-top:0">Phone diagnostics first, then your most recent ride. Contains precise location; only share it with someone you trust.</div>
+  <div class="adv-hint" style="margin-top:0">Phone diagnostics first, then your last 3 rides, newest first. A ride is only recorded once navigation starts. Contains precise location; only share it with someone you trust.</div>
   <pre class="dbg-box" id="dbgBox">No ride recorded yet.</pre>
   <div class="dbg-row">
     <button class="dbg-btn" id="dbgCopy">Copy log</button>
