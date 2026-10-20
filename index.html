@@ -6,7 +6,10 @@
 <meta name="theme-color" content="#1c1c1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GlanceNav</title>
-<!-- GlanceNav v0.17.9.4 config page
+<!-- GlanceNav v0.17.9.5 config page
+     • Ride log arrives packed (debugPacked) and is unpacked to CSV here; last 5 rides,
+       tagged/crash rides protected; trimmed rides are labelled in the log itself.
+     GlanceNav v0.17.9.4 config page
      • Ride log keeps the last 3 rides (newest first); label/hint updated.
      GlanceNav v0.17.9.3 config page
      • Junction view is a 3-way choice: Off / When helpful / Always (testing).
@@ -341,11 +344,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
     <div class="adv-hint">Required for map tiles and search (even when using Stadia routing). Always use a public token (pk.), never a secret token.</div>
   <div class="adv-lbl" style="margin-top:18px">Ride debug log</div>
   <label class="toggle-row" for="debugLog" style="padding-left:0;padding-right:0">
-    <span class="toggle-label">Record rides (last 3)</span>
+    <span class="toggle-label">Record rides (last 5)</span>
     <input type="checkbox" id="debugLog" checked>
     <span class="toggle-track"></span>
   </label>
-  <div class="adv-hint" style="margin-top:0">Phone diagnostics first, then your last 3 rides, newest first. A ride is only recorded once navigation starts. Contains precise location; only share it with someone you trust.</div>
+  <div class="adv-hint" style="margin-top:0">Phone diagnostics first, then your last 5 rides, newest first. Rides under a minute are not kept; tagged rides and rides where the watch app closed unexpectedly are kept longer. Contains precise location; only share it with someone you trust.</div>
   <pre class="dbg-box" id="dbgBox">No ride recorded yet.</pre>
   <div class="dbg-row">
     <button class="dbg-btn" id="dbgCopy">Copy log</button>
@@ -444,6 +447,7 @@ function init(){
       if(typeof inc.dirHaptics!=='undefined')   S.dirHaptics=inc.dirHaptics!==false;
       if(typeof inc.debugLog!=='undefined')     S.debugLog=inc.debugLog!==false;
       if(typeof inc.debug==='string')           S.debugText=inc.debug;
+        if(typeof inc.debugPacked==='string')     S.debugText=inc.debugPacked.replace(/~/g,',').replace(/!/g,'\n');
         if(typeof inc.diag==='string')            S.diagText=inc.diag;
         if(inc.favHome!==undefined)               S.favs.home=inc.favHome;
         if(inc.favWork!==undefined)               S.favs.work=inc.favWork;
